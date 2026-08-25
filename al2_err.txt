@@ -1,0 +1,57 @@
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade c8b6e17933e4 -> c10ac2e075e7, final_schema_for_production
+Traceback (most recent call last):
+  File "C:\whatsapp commerce\backend\run_alembic.py", line 36, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\whatsapp commerce\backend\run_alembic.py", line 31, in main
+    alembic_main(argv=sys.argv[1:])
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\config.py", line 636, in main
+    CommandLine(prog=prog).main(argv=argv)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\config.py", line 626, in main
+    self.run_cmd(cfg, options)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\config.py", line 603, in run_cmd
+    fn(
+    ~~^
+        config,
+        ^^^^^^^
+        *[getattr(options, k, None) for k in positional],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        **{k: getattr(options, k, None) for k in kwarg},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\command.py", line 406, in upgrade
+    script.run_env()
+    ~~~~~~~~~~~~~~^^
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\script\base.py", line 586, in run_env
+    util.load_python_file(self.dir, "env.py")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\util\pyfiles.py", line 95, in load_python_file
+    module = load_module_py(module_id, path)
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\util\pyfiles.py", line 113, in load_module_py
+    spec.loader.exec_module(module)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 759, in exec_module
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "C:\whatsapp commerce\backend\alembic\env.py", line 71, in <module>
+    run_migrations_online()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\whatsapp commerce\backend\alembic\env.py", line 65, in run_migrations_online
+    context.run_migrations()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 8, in run_migrations
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\runtime\environment.py", line 946, in run_migrations
+    self.get_context().run_migrations(**kw)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\whatsapp commerce\backend\.venv\Lib\site-packages\alembic\runtime\migration.py", line 623, in run_migrations
+    step.migration_fn(**kw)
+    ~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\whatsapp commerce\backend\alembic\versions\c10ac2e075e7_final_schema_for_production.py", line 210, in upgrade
+    batch_op.add_column(sa.Column('api_key', app.models.whatsapp.EncryptedString(length=500), nullable=False))
+                                             ^^^
+NameError: name 'app' is not defined

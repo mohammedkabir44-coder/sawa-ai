@@ -1,0 +1,1 @@
+Generating C:\whatsapp commerce\backend\alembic\versions\c10ac2e075e7_final_schema_for_production.py ...  done
