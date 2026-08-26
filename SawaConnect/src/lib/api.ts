@@ -1,5 +1,5 @@
 // Lightweight API client for the SAWA backend.
-const API_BASE_URL = 'http://localhost:8000/api/v1'
+const API_BASE_URL = 'https://sawa-ai-backend.vercel.app/api/v1'
 
 const TOKEN_KEY = 'sawa_token'
 const BUSINESS_KEY = 'sawa_business_id'
