@@ -5,6 +5,7 @@ three system roles (owner, admin, staff) are seeded per test.  This avoids
 the session/function fixture mismatch that previously caused flaky state
 leakage between tests.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -12,6 +13,18 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
+
+# Tests must never run in debug mode.
+#
+# app.main builds FastAPI(debug=settings.DEBUG), and Starlette's
+# ServerErrorMiddleware returns a full traceback when debug=True instead
+# of invoking the registered exception handler.  That makes the test
+# result depend on whether the local `.env` (DEBUG=true) happens to be
+# loaded — i.e. on the working directory the tests are launched from.
+# Force DEBUG off here (environment variables take precedence over the
+# .env file in pydantic-settings) so behaviour is identical everywhere.
+os.environ["DEBUG"] = "false"
+os.environ["APP_ENV"] = "test"
 
 from typing import Optional, Generator
 
