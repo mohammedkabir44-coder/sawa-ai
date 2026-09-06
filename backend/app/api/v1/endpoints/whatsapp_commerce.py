@@ -159,3 +159,14 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)) -> Di
                     except Exception:
                         logger.exception("Failed to process message")
     return {"status": "success"}
+
+@router.get("/check-env")
+async def check_env():
+    t = os.getenv("WHATSAPP_ACCESS_TOKEN", "NOT_FOUND")
+    p = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "NOT_FOUND")
+    return {
+        "token_found": t != "NOT_FOUND",
+        "token_length": len(t),
+        "token_preview": t[:15] + "..." if t != "NOT_FOUND" else "N/A",
+        "phone_id": p
+    }
