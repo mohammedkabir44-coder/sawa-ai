@@ -1,4 +1,4 @@
-﻿"""WhatsApp Commerce Engine - simplified reliable build."""
+"""WhatsApp Commerce Engine - simplified reliable build."""
 import hmac
 import hashlib
 import json
@@ -170,3 +170,4 @@ async def check_env():
         "token_preview": t[:15] + "..." if t != "NOT_FOUND" else "N/A",
         "phone_id": p
     }
+
