@@ -85,7 +85,7 @@ def _smart_reply(text_body: str, catalog: List[Dict[str, Any]]) -> str:
 async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[str, Any]) -> Dict[str, Any]:
     from_number = msg.get("from", "")
     text_body = msg.get("text", {}).get("body", "")
-    business_id = _resolve_business_id(db, msg, value) or 1
+    business_id = 3
     catalog = _get_product_catalog(db, business_id)
     reply = _smart_reply(text_body, catalog)
     try:
