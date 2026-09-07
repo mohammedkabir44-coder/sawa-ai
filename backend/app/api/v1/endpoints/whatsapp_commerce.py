@@ -80,9 +80,20 @@ def _resolve_business_id(db: Session, msg: Dict[str, Any], value: Dict[str, Any]
     return None
 
 
+def _extract_img(imgs):
+    import json, ast
+    if not imgs: return ""
+    if isinstance(imgs, list): return str(imgs[0]) if imgs else ""
+    if isinstance(imgs, str):
+        try: return json.loads(imgs)[0]
+        except: pass
+        try: return ast.literal_eval(imgs)[0]
+        except: pass
+    return str(imgs)
+
 def _get_product_catalog(db: Session, business_id: int) -> List[Dict[str, Any]]:
     products = db.query(Product).filter(Product.business_id == business_id, Product.is_active.is_(True)).all()
-    return [{"id": p.id, "name": p.name, "price": p.price, "stock_quantity": p.stock, "image_url": (p.images[0] if p.images else "")} for p in products]
+    return [{"id": p.id, "name": p.name, "price": p.price, "stock_quantity": p.stock, "image_url": _extract_img(p.images)} for p in products]
 
 
 def _smart_reply(text_body: str, catalog: List[Dict[str, Any]]) -> str:
