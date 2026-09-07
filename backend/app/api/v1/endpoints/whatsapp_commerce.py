@@ -30,6 +30,23 @@ WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "sawatoken123")
 WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
 
 
+
+def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str, Any]:
+    token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+    phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    payload = json.dumps({
+        "messaging_product": "whatsapp",
+        "to": to_number,
+        "type": "image",
+        "image": {"link": image_url, "caption": caption},
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
 def _direct_send(to_number: str, text: str) -> Dict[str, Any]:
     """Send a WhatsApp text using the PROVEN env credentials."""
     token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
@@ -65,7 +82,7 @@ def _resolve_business_id(db: Session, msg: Dict[str, Any], value: Dict[str, Any]
 
 def _get_product_catalog(db: Session, business_id: int) -> List[Dict[str, Any]]:
     products = db.query(Product).filter(Product.business_id == business_id, Product.is_active.is_(True)).all()
-    return [{"id": p.id, "name": p.name, "price": p.price, "stock_quantity": p.stock} for p in products]
+    return [{"id": p.id, "name": p.name, "price": p.price, "stock_quantity": p.stock, "image_url": (p.images[0] if p.images else "")} for p in products]
 
 
 def _smart_reply(text_body: str, catalog: List[Dict[str, Any]]) -> str:
@@ -89,8 +106,12 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
     catalog = _get_product_catalog(db, business_id)
     reply = _smart_reply(text_body, catalog)
     try:
-        send_result = _direct_send(from_number, reply)
-        return {"status": "SENT", "reply": reply, "meta": send_result}
+        image_url = next((p["image_url"] for p in catalog if p["name"].lower() in text_body.lower() or p["name"].lower().split()[0] in text_body.lower()), "")
+        if image_url:
+            send_result = _direct_send_image(from_number, image_url, reply)
+        else:
+            send_result = _direct_send(from_number, reply)
+        return {"status": "SENT", "reply": reply, "image_sent": bool(image_url), "meta": send_result}
     except Exception as exc:
         meta_body = ""
         if hasattr(exc, "read"):
