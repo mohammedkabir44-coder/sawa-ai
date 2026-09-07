@@ -111,7 +111,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
             send_result = _direct_send_image(from_number, image_url, reply)
         else:
             send_result = _direct_send(from_number, reply)
-        return {"status": "SENT", "reply": reply, "image_sent": bool(image_url), "meta": send_result}
+        return {"status": "SENT", "reply": reply, "extracted_url": image_url, "image_sent": bool(image_url), "meta": send_result}
     except Exception as exc:
         meta_body = ""
         if hasattr(exc, "read"):
@@ -119,7 +119,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
                 meta_body = exc.read().decode("utf-8")
             except Exception:
                 meta_body = ""
-        return {"status": "SEND_FAILED", "reply": reply, "error": str(exc), "meta_response": meta_body}
+        return {"status": "SEND_FAILED", "reply": reply, "extracted_url": image_url, "error": str(exc), "meta_response": meta_body}
 
 
 @router.get("/webhook", response_class=PlainTextResponse)
