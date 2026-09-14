@@ -53,7 +53,7 @@ def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str
 
 def _call_openai_brain(user_msg: str, catalog: list) -> str:
     import os, json, urllib.request
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    api_key = "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".strip()
     if not api_key: return ""
 
     system_prompt = f"""You are a friendly, expert sales assistant for Sodangi Motors in Nigeria.
@@ -64,7 +64,7 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
     If they just say hello (Sannu/Barka), greet them back in Hausa and ask what they want to buy."""
 
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "openai/gpt-oss-120b",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
@@ -157,7 +157,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
     reply = _smart_reply(text_body, catalog)
     try:
         # --- OPENAI BRAIN ---
-        ai_reply = ""
+        ai_reply = _call_openai_brain(text_body, catalog)
         if ai_reply:
             reply = ai_reply
         # -------------------
