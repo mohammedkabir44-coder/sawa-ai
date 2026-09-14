@@ -355,44 +355,77 @@ async function loadProducts(){try{var ps=await api("/products","GET");var b=docu
       var thumb=imgs.length?"<img src='"+imgs[0]+"' style='width:44px;height:44px;object-fit:cover;border-radius:6px;margin-right:8px;vertical-align:middle'>":"";
       var gal=imgs.length?"<a href='"+imgs[0]+"' target='_blank' style='color:#22c55e'>"+imgs.length+" media</a>":"-";
       tr.innerHTML="<td>"+thumb+p.name+"</td><td>&#8358;"+Number(p.price).toLocaleString()+"</td><td>"+p.stock+"</td><td>"+gal+"</td>";b.appendChild(tr);});}catch(e){toast(e.message,"#dc2626");}}
-async function uploadProduct(){try{var r=await api("/products/upload","POST",{name:document.getElementById("pName").value,price:parseFloat(document.getElementById("pPrice").value),image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast(r.message+' | '+(r.images_saved||0)+' media saved in DB');loadProducts();}catch(e){toast(e.message,"#dc2626");}}
+async function uploadProduct(){
+  var nameV=document.getElementById("pName").value;
+  var priceV=parseFloat(document.getElementById("pPrice").value);
+  if(!nameV||isNaN(priceV)){toast("Fill product name and price first","#dc2626");return;}
+  var filesCount=document.getElementById("pFile").files.length;
+  var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){urls=[];}
+  if(filesCount>0&&urls.length===0){toast("No media uploaded yet! Pick your files and wait for the green check BEFORE saving.","#dc2626");return;}
+  try{
+    var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);
+    toast(r.message+" | "+(r.images_saved||0)+" media saved in DB");
+    document.getElementById("pFile").value="";
+    document.getElementById("pImg").value="";
+    document.getElementById("mediaPreview").textContent="";
+    loadProducts();
+  }catch(e){toast(e.message,"#dc2626");}
+}
+
 async function connectWA(){try{var r=await api("/connect-whatsapp","POST",{phone_number_id:document.getElementById("waPid").value,access_token:document.getElementById("waTok").value,display_name:document.getElementById("waName").value},true);toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
 
 var CLOUD={name:"",preset:""};
 async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";document.getElementById("cCloud").value=CLOUD.name;document.getElementById("cPreset").value=CLOUD.preset;}catch(e){}}
 async function saveSettings(){try{var r=await api("/settings","POST",{cloud_name:document.getElementById("cCloud").value,upload_preset:document.getElementById("cPreset").value},true);CLOUD.name=document.getElementById("cCloud").value;CLOUD.preset=document.getElementById("cPreset").value;toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
+async function putCloudinary(f){
+  var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);
+  var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});
+  if(!r.ok)throw new Error("cloudinary "+r.status);
+  var d=await r.json();return d.secure_url;
+}
+async function putPixeldrain(f){
+  var fd=new FormData();fd.append("file",f);
+  var r=await fetch("https://pixeldrain.com/api/file/file",{method:"POST",body:fd});
+  if(!r.ok)throw new Error("pixeldrain "+r.status);
+  var d=await r.json();
+  if(!d.id)throw new Error("pixeldrain no id");
+  return "https://pixeldrain.com/api/file/"+d.id;
+}
+async function putRelay(f){
+  if(f.size>4000000)throw new Error("too big for relay");
+  var fd=new FormData();fd.append("file",f);
+  var r=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd});
+  if(!r.ok)throw new Error("relay "+r.status);
+  var d=await r.json();return d.url;
+}
 async function uploadOne(f){
-  if(CLOUD.name&&CLOUD.preset){
-    var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);
-    var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});
-    if(!r.ok)throw new Error("Cloudinary upload failed for "+f.name);
-    var d=await r.json();return d.secure_url;
+  var chain=[];
+  if(CLOUD.name&&CLOUD.preset)chain.push(putCloudinary);
+  chain.push(putPixeldrain);
+  chain.push(putRelay);
+  var lastErr="unknown";
+  for(var a=0;a<chain.length;a++){
+    for(var attempt=0;attempt<2;attempt++){
+      try{return await chain[a](f);}catch(e){lastErr=e.message;}
+    }
   }
-  if(f.size>4000000)throw new Error(f.name+" is too big for the free relay. Save Cloudinary settings below first.");
-  await new Promise(function(res){setTimeout(res,700);});var fd2=new FormData();fd2.append("file",f);
-  var r2=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd2});
-  if(!r2.ok)throw new Error("Relay upload failed for "+f.name);
-  var d2=await r2.json();return d2.url;
+  throw new Error(f.name+": "+lastErr);
 }
 async function uploadMedia(){
   var files=document.getElementById("pFile").files;
   if(!files.length)return;
   var prev=document.getElementById("mediaPreview");
-  var urls=[];
-  try{
-    for(var i=0;i<files.length;i++){
-      prev.textContent="Uploading "+(i+1)+" of "+files.length+": "+files[i].name;
-      var u=await uploadOne(files[i]);
-      urls.push(u);
-    }
-    document.getElementById("pImg").value=JSON.stringify(urls);
-    prev.innerHTML="Uploaded "+urls.length+" file(s)! <a href='"+urls[0]+"' target='_blank' style='color:#22c55e'>View first</a>";
-    toast(urls.length+" file(s) uploaded! Now click Upload Product.");
-  }catch(e){
-    if(urls.length){document.getElementById("pImg").value=JSON.stringify(urls);prev.innerHTML="Partial: "+urls.length+" uploaded. "+e.message;}
-    else{prev.textContent="Error: "+e.message;}
-    toast(e.message,"#dc2626");
+  var urls=[];var failed=[];
+  for(var i=0;i<files.length;i++){
+    prev.textContent="Uploading "+(i+1)+" of "+files.length+": "+files[i].name;
+    try{var u=await uploadOne(files[i]);urls.push(u);}
+    catch(e){failed.push(files[i].name);}
   }
+  document.getElementById("pImg").value=JSON.stringify(urls);
+  var msg="Uploaded "+urls.length+"/"+files.length+" file(s).";
+  if(failed.length)msg+=" Failed: "+failed.join(", ");
+  prev.innerHTML=(urls.length==files.length?"✅ ":"⚠️ ")+msg;
+  toast(msg, urls.length==files.length?"#16a34a":"#dc2626");
 }
 
 if(TOKEN){enterDash();}
