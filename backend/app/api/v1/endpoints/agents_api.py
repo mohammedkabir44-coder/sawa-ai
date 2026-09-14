@@ -11,6 +11,9 @@ from app.models.product import Product
 import uuid
 import urllib.request
 
+router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
+SECRET = "sodangi-sawa-secret-2026-do-not-share"
+
 def _upload_to_catbox(file_bytes, filename, content_type="application/octet-stream"):
     boundary = uuid.uuid4().hex
     body = b""
@@ -53,7 +56,6 @@ async def upload_media(request: Request):
     url = _upload_to_catbox(file_bytes, filename, f_ct)
     return {"url": url}
 
-router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
 SECRET = "sodangi-sawa-secret-2026-do-not-share"
 SODANGI_BUSINESS_ID = 3
 
