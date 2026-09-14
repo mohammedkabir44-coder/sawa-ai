@@ -58,6 +58,18 @@ async def upload_media(request: Request):
 
 SECRET = "sodangi-sawa-secret-2026-do-not-share"
 SODANGI_BUSINESS_ID = 3
+def _ensure_media_schema():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text
+        with engine.connect() as _conn:
+            _conn.execute(_sa_text("ALTER TABLE products ALTER COLUMN images TYPE TEXT"))
+            _conn.commit()
+    except Exception:
+        pass
+
+_ensure_media_schema()
+
 
 class Agent(Base):
     __tablename__ = "sodangi_agents"
@@ -74,6 +86,27 @@ class WAConfig(Base):
     access_token = Column(Text)
     display_name = Column(String)
 
+
+
+def _extract_imgs_list(raw):
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        return [str(x) for x in raw]
+    try:
+        v = json.loads(raw)
+        if isinstance(v, list):
+            return [str(x) for x in v]
+    except Exception:
+        pass
+    try:
+        import ast as _a
+        v = _a.literal_eval(raw)
+        if isinstance(v, list):
+            return [str(x) for x in v]
+    except Exception:
+        pass
+    return [str(raw)]
 
 def _parse_imgs(s):
     s = (s or "").strip()
@@ -152,7 +185,10 @@ def login(req: LoginReq, db: Session = Depends(get_db)):
 @router.get("/products")
 def list_products(db: Session = Depends(get_db)):
     ps = db.query(Product).filter(Product.business_id == SODANGI_BUSINESS_ID).all()
-    return [{"id": p.id, "name": p.name, "price": p.price, "stock": p.stock} for p in ps]
+    out = []
+    for p in ps:
+        out.append({"id": p.id, "name": p.name, "price": p.price, "stock": p.stock, "images": _extract_imgs_list(p.images)})
+    return out
 
 @router.post("/products/upload")
 def upload(req: ProductReq, request: Request, db: Session = Depends(get_db)):
@@ -161,7 +197,8 @@ def upload(req: ProductReq, request: Request, db: Session = Depends(get_db)):
         p = Product(business_id=SODANGI_BUSINESS_ID, name=req.name, price=req.price, stock=req.stock, images=_parse_imgs(req.image_url), is_active=True)
         db.add(p)
         db.commit()
-        return {"message": "Product uploaded by " + me["e"], "product": req.name}
+        db.refresh(p)
+        return {"message": "Product uploaded by " + me["e"], "product": req.name, "images_saved": len(_extract_imgs_list(p.images))}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -283,7 +320,7 @@ th{color:var(--muted);font-size:12px}
   </section>
   <section class="card hidden" id="listCard">
     <h2>Live Inventory (what the WhatsApp bot sells)</h2>
-    <table><thead><tr><th>Name</th><th>Price</th><th>Stock</th></tr></thead><tbody id="prodBody"></tbody></table>
+    <table><thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Media</th></tr></thead><tbody id="prodBody"></tbody></table>
   </section>
   <section class="card hidden" id="waCard">
     <h2>Register Company WhatsApp Number (Owner only)</h2>
@@ -314,8 +351,11 @@ function enterDash(){document.getElementById("authCard").className="card hidden"
 async function doLogin(){try{var r=await api("/login","POST",{email:document.getElementById("liEmail").value,password:document.getElementById("liPass").value});TOKEN=r.token;ROLE=r.role;NAME=r.full_name;localStorage.setItem("sodangi_token",TOKEN);localStorage.setItem("sodangi_role",ROLE);localStorage.setItem("sodangi_name",NAME);toast("Welcome "+NAME+"!");enterDash();}catch(e){toast(e.message,"#dc2626");}}
 async function doRegister(){try{await api("/register","POST",{full_name:document.getElementById("rgName").value,email:document.getElementById("rgEmail").value,password:document.getElementById("rgPass").value});toast("Account created! Now login.");showTab("login");}catch(e){toast(e.message,"#dc2626");}}
 function logout(){localStorage.removeItem("sodangi_token");localStorage.removeItem("sodangi_role");localStorage.removeItem("sodangi_name");location.reload();}
-async function loadProducts(){try{var ps=await api("/products","GET");var b=document.getElementById("prodBody");b.innerHTML="";ps.forEach(function(p){var tr=document.createElement("tr");tr.innerHTML="<td>"+p.name+"</td><td>&#8358;"+Number(p.price).toLocaleString()+"</td><td>"+p.stock+"</td>";b.appendChild(tr);});}catch(e){toast(e.message,"#dc2626");}}
-async function uploadProduct(){try{var r=await api("/products/upload","POST",{name:document.getElementById("pName").value,price:parseFloat(document.getElementById("pPrice").value),image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast(r.message);loadProducts();}catch(e){toast(e.message,"#dc2626");}}
+async function loadProducts(){try{var ps=await api("/products","GET");var b=document.getElementById("prodBody");b.innerHTML="";ps.forEach(function(p){var tr=document.createElement("tr");var imgs=p.images||[];
+      var thumb=imgs.length?"<img src='"+imgs[0]+"' style='width:44px;height:44px;object-fit:cover;border-radius:6px;margin-right:8px;vertical-align:middle'>":"";
+      var gal=imgs.length?"<a href='"+imgs[0]+"' target='_blank' style='color:#22c55e'>"+imgs.length+" media</a>":"-";
+      tr.innerHTML="<td>"+thumb+p.name+"</td><td>&#8358;"+Number(p.price).toLocaleString()+"</td><td>"+p.stock+"</td><td>"+gal+"</td>";b.appendChild(tr);});}catch(e){toast(e.message,"#dc2626");}}
+async function uploadProduct(){try{var r=await api("/products/upload","POST",{name:document.getElementById("pName").value,price:parseFloat(document.getElementById("pPrice").value),image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast(r.message+' | '+(r.images_saved||0)+' media saved in DB');loadProducts();}catch(e){toast(e.message,"#dc2626");}}
 async function connectWA(){try{var r=await api("/connect-whatsapp","POST",{phone_number_id:document.getElementById("waPid").value,access_token:document.getElementById("waTok").value,display_name:document.getElementById("waName").value},true);toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
 
 var CLOUD={name:"",preset:""};
@@ -329,7 +369,7 @@ async function uploadOne(f){
     var d=await r.json();return d.secure_url;
   }
   if(f.size>4000000)throw new Error(f.name+" is too big for the free relay. Save Cloudinary settings below first.");
-  var fd2=new FormData();fd2.append("file",f);
+  await new Promise(function(res){setTimeout(res,700);});var fd2=new FormData();fd2.append("file",f);
   var r2=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd2});
   if(!r2.ok)throw new Error("Relay upload failed for "+f.name);
   var d2=await r2.json();return d2.url;
