@@ -120,3 +120,111 @@ def connect_wa(req: WAReq, request: Request, db: Session = Depends(get_db)):
         db.add(WAConfig(phone_number_id=req.phone_number_id, access_token=req.access_token, display_name=req.display_name))
     db.commit()
     return {"message": "WhatsApp number registered to Sodangi Motors"}
+
+
+from fastapi.responses import HTMLResponse
+
+DASHBOARD_HTML = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sodangi Motors - Agent Dashboard</title>
+<style>
+:root{--bg:#0b1220;--card:#151f38;--accent:#22c55e;--accent2:#0ea5e9;--text:#e5e7eb;--muted:#94a3b8}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Arial,sans-serif}
+body{background:var(--bg);color:var(--text);padding-bottom:60px}
+header{background:linear-gradient(90deg,#059669,#0ea5e9);padding:16px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+header h1{font-size:20px;color:#fff}
+.who{font-size:13px;color:#e0f2fe;margin-right:10px}
+button{cursor:pointer;border:none;border-radius:8px;padding:10px 16px;font-weight:600}
+.btn-primary{background:var(--accent);color:#052e16}
+.btn-ghost{background:transparent;color:#fff;border:1px solid #ffffff66}
+main{max-width:960px;margin:24px auto;padding:0 16px;display:grid;gap:18px}
+.card{background:var(--card);border:1px solid #1e293b;border-radius:14px;padding:20px}
+.card h2{font-size:16px;margin-bottom:12px;color:#7dd3fc}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+input{width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px;border-bottom:1px solid #1e293b;text-align:left}
+th{color:var(--muted);font-size:12px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:12px 20px;border-radius:10px;display:none;z-index:99}
+.hidden{display:none}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tab{padding:8px 14px;border-radius:8px;background:#1e293b;color:var(--muted)}
+.tab.active{background:var(--accent2);color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <h1>SODANGI MOTORS - Agent Dashboard</h1>
+  <div><span class="who" id="who"></span><button class="btn-ghost hidden" id="logoutBtn" onclick="logout()">Logout</button></div>
+</header>
+<main>
+  <section class="card" id="authCard">
+    <div class="tabs">
+      <button class="tab active" id="tabLogin" onclick="showTab('login')">Login</button>
+      <button class="tab" id="tabReg" onclick="showTab('reg')">Create Agent Account</button>
+    </div>
+    <div id="loginForm">
+      <label>Email</label><input id="liEmail" type="email" placeholder="agent@sodangi.com">
+      <label>Password</label><input id="liPass" type="password">
+      <br><br><button class="btn-primary" onclick="doLogin()">Login</button>
+    </div>
+    <div id="regForm" class="hidden">
+      <label>Full Name</label><input id="rgName" placeholder="Musa Abdullahi">
+      <label>Email</label><input id="rgEmail" type="email">
+      <label>Password</label><input id="rgPass" type="password">
+      <br><br><button class="btn-primary" onclick="doRegister()">Create Account</button>
+    </div>
+  </section>
+  <section class="card hidden" id="dashCard">
+    <h2>Upload Product</h2>
+    <div class="row">
+      <div><label>Product Name</label><input id="pName" placeholder="Toyota Corolla 2020"></div>
+      <div><label>Price (Naira)</label><input id="pPrice" type="number" placeholder="7500000"></div>
+    </div>
+    <div class="row">
+      <div><label>Image URL</label><input id="pImg" placeholder="https://...jpg"></div>
+      <div><label>Stock</label><input id="pStock" type="number" value="5"></div>
+    </div>
+    <label>Description</label><input id="pDesc" placeholder="Short sales description">
+    <br><br><button class="btn-primary" onclick="uploadProduct()">Upload Product</button>
+  </section>
+  <section class="card hidden" id="listCard">
+    <h2>Live Inventory (what the WhatsApp bot sells)</h2>
+    <table><thead><tr><th>Name</th><th>Price</th><th>Stock</th></tr></thead><tbody id="prodBody"></tbody></table>
+  </section>
+  <section class="card hidden" id="waCard">
+    <h2>Register Company WhatsApp Number (Owner only)</h2>
+    <label>Phone Number ID</label><input id="waPid" placeholder="1332619033263966">
+    <label>Access Token (EAA...)</label><input id="waTok">
+    <label>Display Name</label><input id="waName" placeholder="Sodangi Motors">
+    <br><br><button class="btn-primary" onclick="connectWA()">Save WhatsApp Config</button>
+  </section>
+</main>
+<div id="toast"></div>
+<script>
+var API="/api/v1/dashboard";
+var TOKEN=localStorage.getItem("sodangi_token")||"";
+var ROLE=localStorage.getItem("sodangi_role")||"";
+var NAME=localStorage.getItem("sodangi_name")||"";
+function toast(m,c){var t=document.getElementById("toast");t.textContent=m;t.style.background=c||"#16a34a";t.style.display="block";setTimeout(function(){t.style.display="none";},3500);}
+function showTab(w){document.getElementById("tabLogin").className="tab"+(w=="login"?" active":"");document.getElementById("tabReg").className="tab"+(w=="reg"?" active":"");document.getElementById("loginForm").className=(w=="login"?"":"hidden");document.getElementById("regForm").className=(w=="reg"?"":"hidden");}
+async function api(path,method,body,auth){var h={"Content-Type":"application/json"};if(auth){h["Authorization"]="Bearer "+TOKEN;}var r=await fetch(API+path,{method:method,headers:h,body:body?JSON.stringify(body):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
+function enterDash(){document.getElementById("authCard").className="card hidden";document.getElementById("dashCard").className="card";document.getElementById("listCard").className="card";document.getElementById("waCard").className=(ROLE=="owner"?"card":"card hidden");document.getElementById("logoutBtn").className="btn-ghost";document.getElementById("who").textContent=NAME+" ("+ROLE+")";loadProducts();}
+async function doLogin(){try{var r=await api("/login","POST",{email:document.getElementById("liEmail").value,password:document.getElementById("liPass").value});TOKEN=r.token;ROLE=r.role;NAME=r.full_name;localStorage.setItem("sodangi_token",TOKEN);localStorage.setItem("sodangi_role",ROLE);localStorage.setItem("sodangi_name",NAME);toast("Welcome "+NAME+"!");enterDash();}catch(e){toast(e.message,"#dc2626");}}
+async function doRegister(){try{await api("/register","POST",{full_name:document.getElementById("rgName").value,email:document.getElementById("rgEmail").value,password:document.getElementById("rgPass").value});toast("Account created! Now login.");showTab("login");}catch(e){toast(e.message,"#dc2626");}}
+function logout(){localStorage.removeItem("sodangi_token");localStorage.removeItem("sodangi_role");localStorage.removeItem("sodangi_name");location.reload();}
+async function loadProducts(){try{var ps=await api("/products","GET");var b=document.getElementById("prodBody");b.innerHTML="";ps.forEach(function(p){var tr=document.createElement("tr");tr.innerHTML="<td>"+p.name+"</td><td>&#8358;"+Number(p.price).toLocaleString()+"</td><td>"+p.stock+"</td>";b.appendChild(tr);});}catch(e){toast(e.message,"#dc2626");}}
+async function uploadProduct(){try{var r=await api("/products/upload","POST",{name:document.getElementById("pName").value,price:parseFloat(document.getElementById("pPrice").value),image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast(r.message);loadProducts();}catch(e){toast(e.message,"#dc2626");}}
+async function connectWA(){try{var r=await api("/connect-whatsapp","POST",{phone_number_id:document.getElementById("waPid").value,access_token:document.getElementById("waTok").value,display_name:document.getElementById("waName").value},true);toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
+if(TOKEN){enterDash();}
+</script>
+</body>
+</html>"""
+
+@router.get("/ui", response_class=HTMLResponse)
+def dashboard_ui():
+    return DASHBOARD_HTML
