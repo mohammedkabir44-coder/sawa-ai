@@ -33,7 +33,7 @@ WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
 
 
 def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str, Any]:
-    token = "EAANZAjZBmeHmQBSavwqAxtNDoRn4mDA53rgTNXbgCL3aHweaVrMVRgZAtPrxHIDUr3sznotl65yJXEhj3VOEre9KAHgiup1Eb0JeA1K40uDRh4LssXgnWYlvfq3fbDjjnzqK4VzC1t0V6X64iCM4m3s1WoLZB5vzI6HTSTozkpNZB9IR6ZAsPKj03dAn45bRWTYcJQeG0vSdEHIEvKTZC6CDIQewxBjFm2fK6bJkL3miYwDcpxSQNlBVS4LoOHKPv3mgETc5gclKc7Me9oZD"
+    token = "EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD"
     phone_id = "1332619033263966"
     
     url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
@@ -46,6 +46,7 @@ def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str
     req = urllib.request.Request(url, data=payload, method="POST")
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
     with urllib.request.urlopen(req, timeout=10) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
@@ -74,6 +75,7 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
     req = urllib.request.Request("https://api.groq.com/openai/v1/chat/completions", data=data, method="POST")
     req.add_header("Authorization", f"Bearer {api_key}")
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
 
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -85,7 +87,7 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
 
 def _direct_send(to_number: str, text: str) -> Dict[str, Any]:
     """Send a WhatsApp text using the PROVEN env credentials."""
-    token = "EAANZAjZBmeHmQBSavwqAxtNDoRn4mDA53rgTNXbgCL3aHweaVrMVRgZAtPrxHIDUr3sznotl65yJXEhj3VOEre9KAHgiup1Eb0JeA1K40uDRh4LssXgnWYlvfq3fbDjjnzqK4VzC1t0V6X64iCM4m3s1WoLZB5vzI6HTSTozkpNZB9IR6ZAsPKj03dAn45bRWTYcJQeG0vSdEHIEvKTZC6CDIQewxBjFm2fK6bJkL3miYwDcpxSQNlBVS4LoOHKPv3mgETc5gclKc7Me9oZD"
+    token = "EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD"
     phone_id = "1332619033263966"
     url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
     payload = json.dumps({
@@ -97,6 +99,7 @@ def _direct_send(to_number: str, text: str) -> Dict[str, Any]:
     req = urllib.request.Request(url, data=payload, method="POST")
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
     with urllib.request.urlopen(req, timeout=10) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
