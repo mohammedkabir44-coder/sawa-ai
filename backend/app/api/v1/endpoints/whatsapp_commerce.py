@@ -152,7 +152,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
     reply = _smart_reply(text_body, catalog)
     try:
         # --- OPENAI BRAIN ---
-        ai_reply = _call_openai_brain(text_body, catalog)
+        ai_reply = ""
         if ai_reply:
             reply = ai_reply
         # -------------------
