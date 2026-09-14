@@ -7,6 +7,52 @@ from sqlalchemy import Column, Integer, String, Float, Text
 from app.core.database import get_db, Base
 from app.models.product import Product
 
+
+import uuid
+import urllib.request
+
+def _upload_to_catbox(file_bytes, filename, content_type="application/octet-stream"):
+    boundary = uuid.uuid4().hex
+    body = b""
+    body += f"--{boundary}\r\n".encode()
+    body += b"Content-Disposition: form-data; name=\"reqtype\"\r\n\r\n"
+    body += b"fileupload\r\n"
+    body += f"--{boundary}\r\n".encode()
+    body += f"Content-Disposition: form-data; name=\"fileToUpload\"; filename=\"{filename}\"\r\n".encode()
+    body += f"Content-Type: {content_type}\r\n\r\n".encode()
+    body += file_bytes
+    body += f"\r\n--{boundary}--\r\n".encode()
+    req = urllib.request.Request("https://catbox.moe/user/api.php", data=body, method="POST")
+    req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+    req.add_header('User-Agent', 'SodangiAgentDashboard/1.0')
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        return resp.read().decode('utf-8').strip()
+
+@router.post("/upload-media")
+async def upload_media(request: Request):
+    _auth(request)
+    content_type = request.headers.get("content-type", "")
+    body_bytes = await request.body()
+    boundary = content_type.split("boundary=")[-1].strip()
+    parts = body_bytes.split(f"--{boundary}".encode())
+    file_bytes = b""
+    filename = "upload.jpg"
+    f_ct = "application/octet-stream"
+    for part in parts:
+        if b"name=\"file\"" in part or b"fileToUpload" in part:
+            header, data = part.split(b"\r\n\r\n", 1)
+            if b"filename=" in header:
+                try: filename = header.split(b"filename=")[1].split(b"\"")[1].decode()
+                except: pass
+            if b"Content-Type:" in header:
+                f_ct = header.split(b"Content-Type:")[1].split(b"\r\n")[0].strip().decode()
+            file_bytes = data[:-2] if data.endswith(b"\r\n") else data
+            break
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="No file found in request")
+    url = _upload_to_catbox(file_bytes, filename, f_ct)
+    return {"url": url}
+
 router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
 SECRET = "sodangi-sawa-secret-2026-do-not-share"
 SODANGI_BUSINESS_ID = 3
@@ -186,7 +232,7 @@ th{color:var(--muted);font-size:12px}
       <div><label>Price (Naira)</label><input id="pPrice" type="number" placeholder="7500000"></div>
     </div>
     <div class="row">
-      <div><label>Image URL</label><input id="pImg" placeholder="https://...jpg"></div>
+      <div><label>Product Image or Video (from Gallery)</label><input type="file" id="pFile" accept="image/*,video/*" onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div></div>
       <div><label>Stock</label><input id="pStock" type="number" value="5"></div>
     </div>
     <label>Description</label><input id="pDesc" placeholder="Short sales description">
@@ -220,6 +266,31 @@ function logout(){localStorage.removeItem("sodangi_token");localStorage.removeIt
 async function loadProducts(){try{var ps=await api("/products","GET");var b=document.getElementById("prodBody");b.innerHTML="";ps.forEach(function(p){var tr=document.createElement("tr");tr.innerHTML="<td>"+p.name+"</td><td>&#8358;"+Number(p.price).toLocaleString()+"</td><td>"+p.stock+"</td>";b.appendChild(tr);});}catch(e){toast(e.message,"#dc2626");}}
 async function uploadProduct(){try{var r=await api("/products/upload","POST",{name:document.getElementById("pName").value,price:parseFloat(document.getElementById("pPrice").value),image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast(r.message);loadProducts();}catch(e){toast(e.message,"#dc2626");}}
 async function connectWA(){try{var r=await api("/connect-whatsapp","POST",{phone_number_id:document.getElementById("waPid").value,access_token:document.getElementById("waTok").value,display_name:document.getElementById("waName").value},true);toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
+
+async function uploadMedia(){
+  var f = document.getElementById("pFile").files[0];
+  if(!f) return;
+  var prev = document.getElementById("mediaPreview");
+  prev.textContent = "Uploading " + f.name + "... (this may take a moment)";
+  var fd = new FormData();
+  fd.append("file", f);
+  try {
+    var r = await fetch(API + "/upload-media", {
+      method: "POST",
+      headers: {"Authorization": "Bearer " + TOKEN},
+      body: fd
+    });
+    if(!r.ok) throw new Error("Upload failed");
+    var data = await r.json();
+    document.getElementById("pImg").value = data.url;
+    prev.innerHTML = "✅ Uploaded! <a href='"+data.url+"' target='_blank' style='color:#22c55e'>View Media</a>";
+    toast("Media uploaded! Now click Upload Product.");
+  } catch(e) {
+    prev.textContent = "Error: " + e.message;
+    toast("Upload failed", "#dc2626");
+  }
+}
+
 if(TOKEN){enterDash();}
 </script>
 </body>
