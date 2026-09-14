@@ -403,3 +403,58 @@ if(TOKEN){enterDash();}
 @router.get("/ui", response_class=HTMLResponse)
 def dashboard_ui():
     return DASHBOARD_HTML
+
+
+# ---- STORAGE TRUTH SERUM ----
+def _heal_images_column():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text, inspect as _sa_inspect
+        tname = Product.__table__.name
+        cname = Product.images.name if hasattr(Product, "images") else "images"
+        insp = _sa_inspect(engine)
+        cur = ""
+        for c in insp.get_columns(tname):
+            if c["name"] == cname:
+                cur = str(c["type"]).upper()
+        print("IMAGES COLUMN TYPE BEFORE HEAL:", cur)
+        if "TEXT" not in cur:
+            with engine.begin() as conn:
+                conn.execute(_sa_text("ALTER TABLE " + tname + " ALTER COLUMN " + cname + " TYPE TEXT"))
+            print("IMAGES COLUMN HEALED TO TEXT")
+        else:
+            print("IMAGES COLUMN ALREADY TEXT")
+    except Exception as e:
+        print("HEAL FAILED:", repr(e))
+
+_heal_images_column()
+
+@router.get("/debug-storage")
+def debug_storage(db: Session = Depends(get_db)):
+    info = {}
+    try:
+        from app.core.database import engine
+        from sqlalchemy import inspect as _sa_inspect
+        tname = Product.__table__.name
+        info["table"] = tname
+        insp = _sa_inspect(engine)
+        info["columns"] = {c["name"]: str(c["type"]) for c in insp.get_columns(tname)}
+    except Exception as e:
+        info["inspect_error"] = repr(e)
+    try:
+        ps = db.query(Product).order_by(Product.id.desc()).limit(3).all()
+        info["recent_products"] = [{"id": p.id, "name": p.name, "images_chars": len(p.images or ""), "images_head": (p.images or "")[:120]} for p in ps]
+    except Exception as e:
+        info["recent_error"] = repr(e)
+    try:
+        probe = "[" + ",".join(['"https://example.com/probe%d.jpg"' % i for i in range(25)]) + "]"
+        tp = Product(business_id=SODANGI_BUSINESS_ID, name="__probe__", price=1, stock=1, images=probe, is_active=True)
+        db.add(tp)
+        db.commit()
+        db.delete(tp)
+        db.commit()
+        info["insert_25_urls_test"] = "OK - long galleries fit now"
+    except Exception as e:
+        db.rollback()
+        info["insert_25_urls_test"] = "FAILED: " + repr(e)
+    return info
