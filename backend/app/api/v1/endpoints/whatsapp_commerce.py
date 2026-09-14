@@ -36,7 +36,7 @@ def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str
     token = "EAANZAjZBmeHmQBSavwqAxtNDoRn4mDA53rgTNXbgCL3aHweaVrMVRgZAtPrxHIDUr3sznotl65yJXEhj3VOEre9KAHgiup1Eb0JeA1K40uDRh4LssXgnWYlvfq3fbDjjnzqK4VzC1t0V6X64iCM4m3s1WoLZB5vzI6HTSTozkpNZB9IR6ZAsPKj03dAn45bRWTYcJQeG0vSdEHIEvKTZC6CDIQewxBjFm2fK6bJkL3miYwDcpxSQNlBVS4LoOHKPv3mgETc5gclKc7Me9oZD"
     phone_id = "1332619033263966"
     
-        url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
     payload = json.dumps({
         "messaging_product": "whatsapp",
         "to": to_number,
@@ -52,7 +52,7 @@ def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str
 
 def _call_openai_brain(user_msg: str, catalog: list) -> str:
     import os, json, urllib.request
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key: return ""
 
     system_prompt = f"""You are a friendly, expert sales assistant for Sodangi Motors in Nigeria.
@@ -63,7 +63,7 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
     If they just say hello (Sannu/Barka), greet them back in Hausa and ask what they want to buy."""
 
     payload = {
-        "model": "gpt-4o-mini",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
@@ -71,7 +71,7 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
         "temperature": 0.7
     }
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=data, method="POST")
+    req = urllib.request.Request("https://api.groq.com/openai/v1/chat/completions", data=data, method="POST")
     req.add_header("Authorization", f"Bearer {api_key}")
     req.add_header("Content-Type", "application/json")
 
