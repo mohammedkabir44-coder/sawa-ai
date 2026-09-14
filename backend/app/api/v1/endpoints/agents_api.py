@@ -74,6 +74,15 @@ class WAConfig(Base):
     access_token = Column(Text)
     display_name = Column(String)
 
+
+def _parse_imgs(s):
+    s = (s or "").strip()
+    if s.startswith("["):
+        return s
+    if s:
+        return json.dumps([s])
+    return None
+
 def _hash_pw(pw, salt=None):
     salt = salt or os.urandom(8).hex()
     return salt + ":" + hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 120000).hex()
@@ -149,7 +158,7 @@ def list_products(db: Session = Depends(get_db)):
 def upload(req: ProductReq, request: Request, db: Session = Depends(get_db)):
     me = _auth(request)
     try:
-        p = Product(business_id=SODANGI_BUSINESS_ID, name=req.name, price=req.price, stock=req.stock, images=json.dumps([req.image_url]) if req.image_url else None, is_active=True)
+        p = Product(business_id=SODANGI_BUSINESS_ID, name=req.name, price=req.price, stock=req.stock, images=_parse_imgs(req.image_url), is_active=True)
         db.add(p)
         db.commit()
         return {"message": "Product uploaded by " + me["e"], "product": req.name}
@@ -169,6 +178,38 @@ def connect_wa(req: WAReq, request: Request, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "WhatsApp number registered to Sodangi Motors"}
 
+
+
+class Setting(Base):
+    __tablename__ = "sodangi_settings"
+    id = Column(Integer, primary_key=True)
+    key = Column(String, unique=True, index=True)
+    value = Column(Text)
+
+class SettingsReq(BaseModel):
+    cloud_name: str = ""
+    upload_preset: str = ""
+
+@router.get("/settings")
+def get_settings(db: Session = Depends(get_db)):
+    Setting.__table__.create(bind=db.get_bind(), checkfirst=True)
+    out = {}
+    for row in db.query(Setting).all():
+        out[row.key] = row.value
+    return out
+
+@router.post("/settings")
+def save_settings(req: SettingsReq, request: Request, db: Session = Depends(get_db)):
+    _auth(request)
+    Setting.__table__.create(bind=db.get_bind(), checkfirst=True)
+    for k, v in (("cloud_name", req.cloud_name), ("upload_preset", req.upload_preset)):
+        row = db.query(Setting).filter(Setting.key == k).first()
+        if row:
+            row.value = v
+        else:
+            db.add(Setting(key=k, value=v))
+    db.commit()
+    return {"message": "Media settings saved"}
 
 from fastapi.responses import HTMLResponse
 
@@ -234,7 +275,7 @@ th{color:var(--muted);font-size:12px}
       <div><label>Price (Naira)</label><input id="pPrice" type="number" placeholder="7500000"></div>
     </div>
     <div class="row">
-      <div><label>Product Image or Video (from Gallery)</label><input type="file" id="pFile" accept="image/*,video/*" onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div></div>
+      <div><label>Product Images & Video (select many from gallery)</label><input type="file" id="pFile" accept="image/*,video/*" multiple onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div></div>
       <div><label>Stock</label><input id="pStock" type="number" value="5"></div>
     </div>
     <label>Description</label><input id="pDesc" placeholder="Short sales description">
@@ -251,6 +292,14 @@ th{color:var(--muted);font-size:12px}
     <label>Display Name</label><input id="waName" placeholder="Sodangi Motors">
     <br><br><button class="btn-primary" onclick="connectWA()">Save WhatsApp Config</button>
   </section>
+
+  <section class="card hidden" id="setCard">
+    <h2>Media Storage (Cloudinary - required for video & big files)</h2>
+    <label>Cloudinary Cloud Name</label><input id="cCloud" placeholder="e.g. dx123abc4">
+    <label>Unsigned Upload Preset</label><input id="cPreset" placeholder="e.g. sodangi">
+    <br><br><button class="btn-primary" onclick="saveSettings()">Save Media Settings</button>
+    <div style="margin-top:10px;font-size:12px;color:#94a3b8">Free 2-min setup: cloudinary.com > sign up > Dashboard shows Cloud Name > Settings > Upload > Add upload preset > Signing mode: Unsigned > copy preset name here.</div>
+  </section>
 </main>
 <div id="toast"></div>
 <script>
@@ -261,7 +310,7 @@ var NAME=localStorage.getItem("sodangi_name")||"";
 function toast(m,c){var t=document.getElementById("toast");t.textContent=m;t.style.background=c||"#16a34a";t.style.display="block";setTimeout(function(){t.style.display="none";},3500);}
 function showTab(w){document.getElementById("tabLogin").className="tab"+(w=="login"?" active":"");document.getElementById("tabReg").className="tab"+(w=="reg"?" active":"");document.getElementById("loginForm").className=(w=="login"?"":"hidden");document.getElementById("regForm").className=(w=="reg"?"":"hidden");}
 async function api(path,method,body,auth){var h={"Content-Type":"application/json"};if(auth){h["Authorization"]="Bearer "+TOKEN;}var r=await fetch(API+path,{method:method,headers:h,body:body?JSON.stringify(body):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
-function enterDash(){document.getElementById("authCard").className="card hidden";document.getElementById("dashCard").className="card";document.getElementById("listCard").className="card";document.getElementById("waCard").className=(ROLE=="owner"?"card":"card hidden");document.getElementById("logoutBtn").className="btn-ghost";document.getElementById("who").textContent=NAME+" ("+ROLE+")";loadProducts();}
+function enterDash(){document.getElementById("authCard").className="card hidden";document.getElementById("dashCard").className="card";document.getElementById("listCard").className="card";document.getElementById("waCard").className=(ROLE=="owner"?"card":"card hidden");document.getElementById("setCard").className=(ROLE=="owner"?"card":"card hidden");document.getElementById("logoutBtn").className="btn-ghost";document.getElementById("who").textContent=NAME+" ("+ROLE+")";loadProducts();loadSettings();}
 async function doLogin(){try{var r=await api("/login","POST",{email:document.getElementById("liEmail").value,password:document.getElementById("liPass").value});TOKEN=r.token;ROLE=r.role;NAME=r.full_name;localStorage.setItem("sodangi_token",TOKEN);localStorage.setItem("sodangi_role",ROLE);localStorage.setItem("sodangi_name",NAME);toast("Welcome "+NAME+"!");enterDash();}catch(e){toast(e.message,"#dc2626");}}
 async function doRegister(){try{await api("/register","POST",{full_name:document.getElementById("rgName").value,email:document.getElementById("rgEmail").value,password:document.getElementById("rgPass").value});toast("Account created! Now login.");showTab("login");}catch(e){toast(e.message,"#dc2626");}}
 function logout(){localStorage.removeItem("sodangi_token");localStorage.removeItem("sodangi_role");localStorage.removeItem("sodangi_name");location.reload();}
@@ -269,27 +318,40 @@ async function loadProducts(){try{var ps=await api("/products","GET");var b=docu
 async function uploadProduct(){try{var r=await api("/products/upload","POST",{name:document.getElementById("pName").value,price:parseFloat(document.getElementById("pPrice").value),image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast(r.message);loadProducts();}catch(e){toast(e.message,"#dc2626");}}
 async function connectWA(){try{var r=await api("/connect-whatsapp","POST",{phone_number_id:document.getElementById("waPid").value,access_token:document.getElementById("waTok").value,display_name:document.getElementById("waName").value},true);toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
 
+var CLOUD={name:"",preset:""};
+async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";document.getElementById("cCloud").value=CLOUD.name;document.getElementById("cPreset").value=CLOUD.preset;}catch(e){}}
+async function saveSettings(){try{var r=await api("/settings","POST",{cloud_name:document.getElementById("cCloud").value,upload_preset:document.getElementById("cPreset").value},true);CLOUD.name=document.getElementById("cCloud").value;CLOUD.preset=document.getElementById("cPreset").value;toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
+async function uploadOne(f){
+  if(CLOUD.name&&CLOUD.preset){
+    var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);
+    var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});
+    if(!r.ok)throw new Error("Cloudinary upload failed for "+f.name);
+    var d=await r.json();return d.secure_url;
+  }
+  if(f.size>4000000)throw new Error(f.name+" is too big for the free relay. Save Cloudinary settings below first.");
+  var fd2=new FormData();fd2.append("file",f);
+  var r2=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd2});
+  if(!r2.ok)throw new Error("Relay upload failed for "+f.name);
+  var d2=await r2.json();return d2.url;
+}
 async function uploadMedia(){
-  var f = document.getElementById("pFile").files[0];
-  if(!f) return;
-  var prev = document.getElementById("mediaPreview");
-  prev.textContent = "Uploading " + f.name + "... (this may take a moment)";
-  var fd = new FormData();
-  fd.append("file", f);
-  try {
-    var r = await fetch(API + "/upload-media", {
-      method: "POST",
-      headers: {"Authorization": "Bearer " + TOKEN},
-      body: fd
-    });
-    if(!r.ok) throw new Error("Upload failed");
-    var data = await r.json();
-    document.getElementById("pImg").value = data.url;
-    prev.innerHTML = "✅ Uploaded! <a href='"+data.url+"' target='_blank' style='color:#22c55e'>View Media</a>";
-    toast("Media uploaded! Now click Upload Product.");
-  } catch(e) {
-    prev.textContent = "Error: " + e.message;
-    toast("Upload failed", "#dc2626");
+  var files=document.getElementById("pFile").files;
+  if(!files.length)return;
+  var prev=document.getElementById("mediaPreview");
+  var urls=[];
+  try{
+    for(var i=0;i<files.length;i++){
+      prev.textContent="Uploading "+(i+1)+" of "+files.length+": "+files[i].name;
+      var u=await uploadOne(files[i]);
+      urls.push(u);
+    }
+    document.getElementById("pImg").value=JSON.stringify(urls);
+    prev.innerHTML="Uploaded "+urls.length+" file(s)! <a href='"+urls[0]+"' target='_blank' style='color:#22c55e'>View first</a>";
+    toast(urls.length+" file(s) uploaded! Now click Upload Product.");
+  }catch(e){
+    if(urls.length){document.getElementById("pImg").value=JSON.stringify(urls);prev.innerHTML="Partial: "+urls.length+" uploaded. "+e.message;}
+    else{prev.textContent="Error: "+e.message;}
+    toast(e.message,"#dc2626");
   }
 }
 
