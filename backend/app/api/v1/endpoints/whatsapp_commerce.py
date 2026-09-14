@@ -34,7 +34,13 @@ WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
 def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str, Any]:
     token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
     phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
-    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    
+        # --- BRAIN DUMP ---
+        import os
+        _dbg_token = os.getenv("WHATSAPP_ACCESS_TOKEN", "").strip()
+        print(f"DEBUG: Token length is {len(_dbg_token)}. Starts with {_dbg_token[:15]}. Ends with {_dbg_token[-15:]}")
+        # ------------------
+        url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
     payload = json.dumps({
         "messaging_product": "whatsapp",
         "to": to_number,
