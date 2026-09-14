@@ -29,3 +29,6 @@ api_router.include_router(whatsapp.router)
 api_router.include_router(sms.router)
 api_router.include_router(campaigns.router)
 api_router.include_router(automations.router)
+
+from app.api.v1.endpoints import agents_api as _sodangi_agents
+api_router.include_router(_sodangi_agents.router)
