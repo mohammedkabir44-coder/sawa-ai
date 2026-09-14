@@ -175,7 +175,13 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
 
 
 @router.get("/webhook", response_class=PlainTextResponse)
-return hub_challenge
+async def verify_webhook(
+    hub_mode: str = Query(..., alias="hub.mode"),
+    hub_verify_token: str = Query(..., alias="hub.verify_token"),
+    hub_challenge: str = Query(..., alias="hub.challenge")
+) -> str:
+    if hub_mode == "subscribe" and hub_verify_token == WHATSAPP_VERIFY_TOKEN:
+                  return hub_challenge
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
