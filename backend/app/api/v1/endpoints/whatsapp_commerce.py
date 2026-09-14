@@ -175,7 +175,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
 
 
 @router.get("/webhook", response_class=PlainTextResponse)
-        return hub_challenge
+return hub_challenge
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
