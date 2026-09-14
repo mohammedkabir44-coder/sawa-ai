@@ -47,6 +47,40 @@ def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str
     with urllib.request.urlopen(req, timeout=10) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
+
+def _call_openai_brain(user_msg: str, catalog: list) -> str:
+    import os, json, urllib.request
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key: return ""
+
+    system_prompt = f"""You are a friendly, expert sales assistant for Sodangi Motors in Nigeria.
+    You speak fluent Hausa and English.
+    Your inventory is: {json.dumps(catalog, default=str)}
+    When a customer asks about a product, greet them, tell them the price enthusiastically in Hausa, and mention the EXACT product name so the system can send a photo.
+    Keep replies short (under 3 sentences).
+    If they just say hello (Sannu/Barka), greet them back in Hausa and ask what they want to buy."""
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_msg}
+        ],
+        "temperature": 0.7
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=data, method="POST")
+    req.add_header("Authorization", f"Bearer {api_key}")
+    req.add_header("Content-Type", "application/json")
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            return result["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"OpenAI Error: {e}")
+        return ""
+
 def _direct_send(to_number: str, text: str) -> Dict[str, Any]:
     """Send a WhatsApp text using the PROVEN env credentials."""
     token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
@@ -117,7 +151,12 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
     catalog = _get_product_catalog(db, business_id)
     reply = _smart_reply(text_body, catalog)
     try:
-        image_url = next((p["image_url"] for p in catalog if p["name"].lower() in text_body.lower() or p["name"].lower().split()[0] in text_body.lower()), "")
+        # --- OPENAI BRAIN ---
+        ai_reply = _call_openai_brain(text_body, catalog)
+        if ai_reply:
+            reply = ai_reply
+        # -------------------
+        image_url = next((p["image_url"] for p in catalog if p["name"].lower() in reply.lower() or p["name"].lower().split()[0] in text_body.lower()), "")
         if image_url:
             send_result = _direct_send_image(from_number, image_url, reply)
         else:
