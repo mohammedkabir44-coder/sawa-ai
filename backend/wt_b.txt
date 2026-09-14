@@ -1,0 +1,17 @@
+RC=0
+............                                                             [100%]
+============================== warnings summary ===============================
+backend/tests/test_phase10_smoke.py::TestAutomationAPI::test_create_list_detail_toggle_and_replace_steps
+  C:\whatsapp commerce\backend\venv\Lib\site-packages\pytest_asyncio\plugin.py:1153: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+backend/tests/test_phase10_smoke.py: 17 warnings
+backend/tests/test_phase11_12_smoke.py: 15 warnings
+  c:\whatsapp commerce\backend\venv\Lib\site-packages\jose\jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+12 passed, 33 warnings in 6.33s
+synchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

@@ -25,6 +25,57 @@ from app.services.workflow_engine import execute_automation
 logger = logging.getLogger(__name__)
 
 
+async def _process_whatsapp_broadcasts() -> int:
+    """Launch due / crashed WhatsApp broadcasts. Returns how many were claimed.
+
+    * ``scheduled`` broadcasts whose ``scheduled_time`` has arrived are
+      handed to the broadcast sender (which transitions them to ``sending``).
+    * ``sending`` broadcasts whose ``updated_at`` is stale (older than two
+      minutes) are resumed — the original background task likely died with
+      the process. Resuming is safe because the sender only ever processes
+      ``pending`` recipients.
+    """
+    from app.models.whatsapp import WhatsAppCampaign
+    from app.services.whatsapp.broadcast import ensure_utc, send_broadcast_task
+
+    db = SessionLocal()
+    launched = 0
+    try:
+        from sqlalchemy import or_
+
+        now = utcnow()
+        campaigns = (
+            db.query(WhatsAppCampaign)
+            .filter(
+                WhatsAppCampaign.status.in_(["scheduled", "sending"]),
+                or_(
+                    WhatsAppCampaign.scheduled_time.is_(None),
+                    WhatsAppCampaign.scheduled_time <= now,
+                ),
+            )
+            .all()
+        )
+        for campaign in campaigns:
+            if campaign.status == "sending":
+                updated = ensure_utc(
+                    campaign.updated_at or campaign.started_at or campaign.created_at
+                )
+                if updated and (now - updated).total_seconds() < 120:
+                    # A live sender task is already running — leave it alone.
+                    continue
+            try:
+                asyncio.create_task(
+                    send_broadcast_task(campaign.id, campaign.business_id)
+                )
+                launched += 1
+            except RuntimeError:
+                await send_broadcast_task(campaign.id, campaign.business_id)
+                launched += 1
+    finally:
+        db.close()
+    return launched
+
+
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -143,6 +194,9 @@ async def run_worker(stop_event: Optional[asyncio.Event] = None) -> None:
             ran = await _process_scheduled_campaigns()
             if ran:
                 logger.info("Scheduler ran %s scheduled campaign(s)", ran)
+            launched = await _process_whatsapp_broadcasts()
+            if launched:
+                logger.info("Scheduler launched %s WhatsApp broadcast(s)", launched)
         except Exception:  # noqa: BLE001
             logger.exception("Background worker cycle failed")
 

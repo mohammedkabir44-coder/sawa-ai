@@ -1,4 +1,5 @@
 """Mock WhatsApp provider for local development."""
+import uuid
 from typing import Any, Dict
 
 from app.services.whatsapp.base import WhatsAppProvider
@@ -8,7 +9,16 @@ class MockWhatsAppProvider(WhatsAppProvider):
     """Simulates WhatsApp messaging without external calls."""
 
     def send_message(self, to: str, body: str) -> Dict[str, Any]:
-        return {"status": "sent", "to": to, "body": body, "provider": "mock"}
+        # A deterministic falsifiable wamid (like Meta's ``wamid.xxxxx``) so
+        # callers can store a provider_message_id and exercise the webhook
+        # status/reply matching pipeline end-to-end in local dev & tests.
+        return {
+            "status": "sent",
+            "to": to,
+            "body": body,
+            "provider": "mock",
+            "message_id": f"wamid.MOCK{uuid.uuid4().hex[:24]}".upper(),
+        }
 
     def verify_webhook(self, token: str) -> bool:
         return token == "mock-verify-token"

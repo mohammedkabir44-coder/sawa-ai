@@ -213,6 +213,15 @@ class WhatsAppCampaign(Base):
     template_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("whatsapp_templates.id", ondelete="SET NULL"), nullable=True
     )
+    # Custom message text used when the broadcast was created without a
+    # template (WhatsAppBroadcastCreate.message_text). Empty when a template
+    # is used — the text is then rendered from template.template_text with
+    # per-recipient variable values at send time.
+    message_text: Mapped[str] = mapped_column(Text, default="")
+    # Per-recipient variable values keyed by customer_id, e.g.
+    # {<customer_id>: {"name": "Amina", "code": "SAWA2026"}}. Applied to
+    # {{placeholders}} in the selected template when each message is sent.
+    variables_map: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
     scheduled_time: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True
     )
@@ -339,6 +348,13 @@ class WhatsAppMessage(Base):
     )  # text | image | document
     media_url: Mapped[str] = mapped_column(String(500), default="")
     media_id: Mapped[str] = mapped_column(String(255), default="")
+    # Meta Cloud API message ID (wamid). Populated when a message is sent
+    # through the real provider and used to match delivery/read/error status
+    # webhooks and inbound context.referenced-message replies back to the
+    # stored row. Empty for historical/unknown messages.
+    provider_message_id: Mapped[str] = mapped_column(
+        String(255), default="", index=True
+    )
     transcript: Mapped[str] = mapped_column(Text, default="")
     direction: Mapped[str] = mapped_column(
         String(10), default="outbound", index=True

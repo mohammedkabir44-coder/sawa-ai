@@ -42,6 +42,10 @@ class WhatsAppAccountCreate(BaseModel):
     phone_number: str = Field(min_length=5, max_length=50)
     api_key: str = Field(min_length=20, max_length=500)
     account_name: str = Field(min_length=1, max_length=255)
+    phone_number_id: Optional[str] = Field(default=None, max_length=255)
+    business_account_id: Optional[str] = Field(default=None, max_length=255)
+    display_name: Optional[str] = Field(default=None, max_length=255)
+    rate_limit_per_hour: Optional[int] = Field(default=None, ge=1, le=100000)
 
     @field_validator("phone_number")
     @classmethod
@@ -55,6 +59,10 @@ class WhatsAppAccountUpdate(BaseModel):
     account_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     status: Optional[str] = Field(default=None, pattern="^(active|inactive)$")
     rate_limit_per_hour: Optional[int] = Field(default=None, ge=1, le=100000)
+    phone_number_id: Optional[str] = Field(default=None, max_length=255)
+    business_account_id: Optional[str] = Field(default=None, max_length=255)
+    display_name: Optional[str] = Field(default=None, max_length=255)
+    is_connected: Optional[bool] = None
 
     model_config = {"extra": "forbid"}
 
@@ -66,7 +74,11 @@ class WhatsAppAccountResponse(BaseModel):
     phone_number: str
     account_name: str
     status: str
+    is_connected: bool
     rate_limit_per_hour: int
+    phone_number_id: str = ""
+    business_account_id: str = ""
+    display_name: str = ""
     created_at: datetime
     business_id: int
 

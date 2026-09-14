@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     products,
     services,
     sms,
+    whatsapp,
     whatsapp_commerce,
 )
 
@@ -24,6 +25,7 @@ api_router.include_router(products.router)
 api_router.include_router(services.router)
 api_router.include_router(analytics.router)
 api_router.include_router(whatsapp_commerce.router)
+api_router.include_router(whatsapp.router)
 api_router.include_router(sms.router)
 api_router.include_router(campaigns.router)
 api_router.include_router(automations.router)
