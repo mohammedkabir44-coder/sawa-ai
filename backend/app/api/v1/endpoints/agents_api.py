@@ -312,7 +312,7 @@ th{color:var(--muted);font-size:12px}
       <div><label>Price (Naira)</label><input id="pPrice" type="number" placeholder="7500000"></div>
     </div>
     <div class="row">
-      <div><label>Product Images & Video (select many from gallery)</label><input type="file" id="pFile" accept="image/*,video/*" multiple onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div></div>
+      <div><label>Product Images & Video (select many from gallery)</label><input type="file" id="pFile" accept="image/*,video/*" multiple onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div><button class="btn-ghost" style="margin-top:8px;border:1px solid #334155;color:#7dd3fc" onclick="testEngine()">Test Media Engine</button></div>
       <div><label>Stock</label><input id="pStock" type="number" value="5"></div>
     </div>
     <label>Description</label><input id="pDesc" placeholder="Short sales description">
@@ -335,7 +335,7 @@ th{color:var(--muted);font-size:12px}
     <label>Cloudinary Cloud Name</label><input id="cCloud" placeholder="e.g. dx123abc4">
     <label>Unsigned Upload Preset</label><input id="cPreset" placeholder="e.g. sodangi">
     <br><br><button class="btn-primary" onclick="saveSettings()">Save Media Settings</button>
-    <div style="margin-top:10px;font-size:12px;color:#94a3b8">Free 2-min setup: cloudinary.com > sign up > Dashboard shows Cloud Name > Settings > Upload > Add upload preset > Signing mode: Unsigned > copy preset name here.</div>
+    <div style="margin-top:10px;font-size:12px;color:#fbbf24">REQUIRED for pictures and videos: cloudinary.com > Sign up free with Google > copy the Cloud Name shown on dashboard > gear Settings > Upload > Upload presets > Add upload preset > name: sodangi > Signing mode: UNSIGNED > Save > paste both values above > Save Media Settings > then click Test Media Engine.</div>
   </section>
 </main>
 <div id="toast"></div>
@@ -419,13 +419,30 @@ async function uploadMedia(){
   for(var i=0;i<files.length;i++){
     prev.textContent="Uploading "+(i+1)+" of "+files.length+": "+files[i].name;
     try{var u=await uploadOne(files[i]);urls.push(u);}
-    catch(e){failed.push(files[i].name);}
+    catch(e){failed.push(files[i].name+" ["+e.message+"]");}
   }
   document.getElementById("pImg").value=JSON.stringify(urls);
   var msg="Uploaded "+urls.length+"/"+files.length+" file(s).";
   if(failed.length)msg+=" Failed: "+failed.join(", ");
   prev.innerHTML=(urls.length==files.length?"✅ ":"⚠️ ")+msg;
   toast(msg, urls.length==files.length?"#16a34a":"#dc2626");
+}
+
+async function testEngine(){
+  var prev=document.getElementById("mediaPreview");
+  try{
+    var c=document.createElement("canvas");c.width=8;c.height=8;
+    var ctx=c.getContext("2d");ctx.fillStyle="#22c55e";ctx.fillRect(0,0,8,8);
+    var blob=await new Promise(function(res){c.toBlob(res,"image/png");});
+    var f=new File([blob],"engine-test.png",{type:"image/png"});
+    prev.textContent="Testing media engine...";
+    var u=await uploadOne(f);
+    prev.innerHTML="✅ Engine OK: <a href='"+u+"' target='_blank' style='color:#22c55e'>"+u.slice(0,60)+"</a>";
+    toast("Media engine works! Select your gallery now.");
+  }catch(e){
+    prev.textContent="Engine test failed: "+e.message;
+    toast("Engine test failed: "+e.message,"#dc2626");
+  }
 }
 
 if(TOKEN){enterDash();}
