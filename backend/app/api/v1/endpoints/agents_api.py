@@ -53,7 +53,10 @@ async def upload_media(request: Request):
             break
     if not file_bytes:
         raise HTTPException(status_code=400, detail="No file found in request")
-    url = _upload_to_catbox(file_bytes, filename, f_ct)
+    try:
+        url = _upload_to_catbox(file_bytes, filename, f_ct)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail="Catbox relay blocked: " + repr(e)[:150])
     return {"url": url}
 
 SECRET = "sodangi-sawa-secret-2026-do-not-share"
@@ -288,6 +291,12 @@ th{color:var(--muted);font-size:12px}
   <div><span class="who" id="who"></span><button class="btn-ghost hidden" id="logoutBtn" onclick="logout()">Logout</button></div>
 </header>
 <main>
+  <section class="card hidden" id="cfgBanner" style="border-color:#dc2626">
+    <h2 style="color:#f87171">Media storage not configured</h2>
+    <div style="font-size:13px;color:#fbbf24">Pictures and videos CANNOT upload until the free Cloudinary pipe is connected (2 minutes, one time, forever). Click below to open the Media Storage card.</div>
+    <br><button class="btn-primary" style="background:#dc2626;color:#fff" onclick="document.getElementById('setCard').scrollIntoView();document.getElementById('cCloud').focus();">Open Media Storage Setup</button>
+  </section>
+
   <section class="card" id="authCard">
     <div class="tabs">
       <button class="tab active" id="tabLogin" onclick="showTab('login')">Login</button>
@@ -375,8 +384,8 @@ async function uploadProduct(){
 async function connectWA(){try{var r=await api("/connect-whatsapp","POST",{phone_number_id:document.getElementById("waPid").value,access_token:document.getElementById("waTok").value,display_name:document.getElementById("waName").value},true);toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
 
 var CLOUD={name:"",preset:""};
-async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";document.getElementById("cCloud").value=CLOUD.name;document.getElementById("cPreset").value=CLOUD.preset;}catch(e){}}
-async function saveSettings(){try{var r=await api("/settings","POST",{cloud_name:document.getElementById("cCloud").value,upload_preset:document.getElementById("cPreset").value},true);CLOUD.name=document.getElementById("cCloud").value;CLOUD.preset=document.getElementById("cPreset").value;toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
+async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";document.getElementById("cCloud").value=CLOUD.name;document.getElementById("cPreset").value=CLOUD.preset;document.getElementById("cfgBanner").className=(ROLE=="owner"&&!CLOUD.name)?"card":"card hidden";}catch(e){}}
+async function saveSettings(){try{var r=await api("/settings","POST",{cloud_name:document.getElementById("cCloud").value,upload_preset:document.getElementById("cPreset").value},true);CLOUD.name=document.getElementById("cCloud").value;CLOUD.preset=document.getElementById("cPreset").value;toast(r.message);document.getElementById("cfgBanner").className="card hidden";}catch(e){toast(e.message,"#dc2626");}}
 async function putCloudinary(f){
   var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);
   var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});
