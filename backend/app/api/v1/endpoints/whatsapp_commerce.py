@@ -37,12 +37,12 @@ def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str
     phone_id = "1332619033263966"
     
     url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
-    payload = json.dumps({
-        "messaging_product": "whatsapp",
-        "to": to_number,
-        "type": "image",
-        "image": {"link": image_url, "caption": caption},
-    }).encode("utf-8")
+    low = image_url.lower().split("?")[0]
+    if low.endswith((".mp4", ".mov", ".webm", ".mkv", ".avi")) or "/video/" in low:
+        media = {"type": "video", "video": {"link": image_url, "caption": caption}}
+    else:
+        media = {"type": "image", "image": {"link": image_url, "caption": caption}}
+    payload = json.dumps(dict({"messaging_product": "whatsapp", "to": to_number}, **media)).encode("utf-8")
     req = urllib.request.Request(url, data=payload, method="POST")
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
@@ -161,7 +161,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
         if ai_reply:
             reply = ai_reply
         # -------------------
-        image_url = next((p["image_url"] for p in catalog if p["name"].lower() in reply.lower() or p["name"].lower().split()[0] in text_body.lower()), "")
+        image_url = _match_image(catalog, reply, text_body)
         if image_url:
             send_result = _direct_send_image(from_number, image_url, reply)
         else:
