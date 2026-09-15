@@ -284,7 +284,7 @@ th{color:var(--muted);font-size:12px}
 </head>
 <body>
 <header>
-  <h1>SODANGI MOTORS - Agent Dashboard</h1>
+  <h1>SODANGI MOTORS - Agent Dashboard <span style="font-size:11px;opacity:.8">ENGINE v3</span></h1>
   <div><span class="who" id="who"></span><button class="btn-ghost hidden" id="logoutBtn" onclick="logout()">Logout</button></div>
 </header>
 <main>
@@ -435,7 +435,7 @@ if(TOKEN){enterDash();}
 
 @router.get("/ui", response_class=HTMLResponse)
 def dashboard_ui():
-    return DASHBOARD_HTML
+    return HTMLResponse(content=DASHBOARD_HTML, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache", "Expires": "0"})
 
 
 # ---- STORAGE TRUTH SERUM ----
