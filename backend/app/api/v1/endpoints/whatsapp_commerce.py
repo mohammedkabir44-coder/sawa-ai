@@ -152,19 +152,23 @@ def _smart_reply(text_body: str, catalog: List[Dict[str, Any]]) -> str:
 
 def _match_image(catalog, reply, text_body):
     hay = (str(reply) + " " + str(text_body)).lower()
-    for p in catalog:
+    # GHOSTBUSTER: Only look at products that actually have pictures saved!
+    valid_catalog = [p for p in catalog if p.get("image_url")]
+    
+    for p in valid_catalog:
         words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
         if words and sum(1 for w in words if w in hay) >= len(words):
             return p["image_url"]
-    for p in catalog:
+    for p in valid_catalog:
         words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
         if words and sum(1 for w in words if w in hay) >= max(1, len(words) - 1):
             return p["image_url"]
-    for p in catalog:
+    for p in valid_catalog:
         words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
         if any(w in hay for w in words):
             return p["image_url"]
     return ""
+
 
 async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[str, Any]) -> Dict[str, Any]:
     from_number = msg.get("from", "")
