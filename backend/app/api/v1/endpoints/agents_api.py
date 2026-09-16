@@ -370,6 +370,34 @@ nav button span{font-size:20px}
 .hidden{display:none !important}
 a{color:var(--primary);text-decoration:none;font-weight:600}
 </style>
+
+<style>
+/* NUCLEAR OVERRIDE: FORCE VISIBILITY */
+body { background: #0f172a !important; color: #f8fafc !important; }
+.card, section, .agent-inner, .car-card { 
+    background: #1e293b !important; 
+    border: 1px solid #334155 !important; 
+    color: #f8fafc !important; 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+}
+h1, h2, h3, label, p, span, div { color: #f8fafc !important; }
+input, textarea, select { 
+    background: #020617 !important; 
+    color: #f8fafc !important; 
+    border: 1px solid #475569 !important; 
+}
+.btn, button { 
+    background: #10b981 !important; 
+    color: #ffffff !important; 
+    border: none !important;
+}
+.btn-danger { background: #ef4444 !important; }
+.btn-ghost { background: #334155 !important; }
+nav { background: #1e293b !important; border-top: 1px solid #334155 !important; }
+nav button { color: #94a3b8 !important; }
+nav button.on { color: #10b981 !important; background: rgba(16,185,129,0.1) !important; }
+</style>
+
 </head>
 <body>
 <header><h1>SODANGI MOTORS</h1><div class="who" id="who"></div></header>
