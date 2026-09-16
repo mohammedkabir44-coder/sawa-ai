@@ -3,7 +3,7 @@ import json, hmac, hashlib, base64, time, os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, Float, Text
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean
 from app.core.database import get_db, Base
 from app.models.product import Product
 
@@ -81,6 +81,18 @@ class Agent(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     role = Column(String, default="agent")
+    phone_number = Column(String)
+    bio = Column(Text)
+    photo_url = Column(Text)
+    is_active = Column(Boolean, default=True)
+
+
+
+class ProductAgent(Base):
+    __tablename__ = "sodangi_product_agents"
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, index=True)
+    agent_id = Column(Integer, index=True)
 
 class WAConfig(Base):
     __tablename__ = "sodangi_wa_config"
@@ -489,7 +501,28 @@ def dashboard_ui():
 
 
 # ---- STORAGE TRUTH SERUM ----
-def _heal_images_column():
+def 
+
+def _heal_agent_schema():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text
+        stmts = [
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS bio TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS photo_url TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        ]
+        with engine.begin() as c:
+            for s in stmts:
+                c.execute(_sa_text(s))
+        print("AGENT SCHEMA HEALED")
+    except Exception as e:
+        print("AGENT SCHEMA HEAL FAILED:", repr(e))
+
+_heal_agent_schema()
+
+_heal_images_column():
     try:
         from app.core.database import engine
         from sqlalchemy import text as _sa_text, inspect as _sa_inspect
@@ -509,6 +542,27 @@ def _heal_images_column():
             print("IMAGES COLUMN ALREADY TEXT")
     except Exception as e:
         print("HEAL FAILED:", repr(e))
+
+
+
+def _heal_agent_schema():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text
+        stmts = [
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS bio TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS photo_url TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        ]
+        with engine.begin() as c:
+            for s in stmts:
+                c.execute(_sa_text(s))
+        print("AGENT SCHEMA HEALED")
+    except Exception as e:
+        print("AGENT SCHEMA HEAL FAILED:", repr(e))
+
+_heal_agent_schema()
 
 _heal_images_column()
 
@@ -567,3 +621,126 @@ def agent_ad(agent_id: int, db: Session = Depends(get_db)):
     js = "var N=" + nj + ",H=" + hj + ",T=" + tj + ";function toast(m){var t=document.getElementById('t');t.textContent=m;t.style.display='block';setTimeout(function(){t.style.display='none'},3000)}function shareIt(){if(navigator.share){navigator.share({title:N,text:T,url:location.href}).catch(function(){})}else{copyIt()}}function fbIt(){window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href))}function waIt(){window.open('https://wa.me/?text='+encodeURIComponent(T+' '+location.href))}function copyIt(){if(navigator.clipboard){navigator.clipboard.writeText(location.href).then(function(){toast('Ad link copied!')})}else{prompt('Copy:',location.href)}}function poster(){var c=document.createElement('canvas');c.width=1080;c.height=1350;var x=c.getContext('2d');var g=x.createLinearGradient(0,0,0,1350);g.addColorStop(0,'#065f46');g.addColorStop(1,'#0369a1');x.fillStyle=g;x.fillRect(0,0,1080,1350);x.fillStyle='#fff';x.font='bold 60px Arial';x.fillText('SODANGI MOTORS',60,130);x.font='34px Arial';x.fillStyle='#bbf7d0';x.fillText('VERIFIED AGENT SHOWROOM',60,190);function fin(){x.fillStyle='#fff';x.font='bold 78px Arial';x.fillText(N,60,1210);x.font='38px Arial';x.fillStyle='#e0f2fe';x.fillText('Tap ad link to chat on WhatsApp',60,1280);c.toBlob(function(b){var a2=document.createElement('a');a2.href=URL.createObjectURL(b);a2.download='sodangi-ad.png';a2.click();toast('Poster downloaded!')})}var im=new Image();im.crossOrigin='anonymous';im.onload=function(){x.drawImage(im,60,240,960,880);fin()};im.onerror=fin;if(H){im.src=H}else{fin()}}"
     html = "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" + str(a.full_name) + " | Sodangi Showroom</title><meta property='og:title' content='" + str(a.full_name) + " - Sodangi Motors'><meta property='og:description' content='" + str(a.bio or 'Verified car dealer') + "'><meta property='og:image' content='" + hero + "'><style>" + css + "</style></head><body><img src='" + hero + "' style='width:100%;height:220px;object-fit:cover'><div class='w'><span class='b'>SODANGI MOTORS VERIFIED SHOWROOM AD</span><div class='c' style='display:flex;gap:12px;align-items:center'><img src='" + str(a.photo_url or '') + "' style='width:60px;height:60px;border-radius:50%;object-fit:cover'><div><h1 style='font-size:18px;color:#fff'>" + str(a.full_name) + "</h1><div style='color:#94a3b8;font-size:13px'>" + str(a.phone_number or '') + "</div></div></div><p style='color:#94a3b8;font-size:14px;margin-top:8px'>" + str(a.bio or '') + "</p><div class='g'>" + cards + "</div><div class='r'><button onclick='shareIt()'>Share</button><button onclick='fbIt()'>Facebook</button><button onclick='waIt()'>WhatsApp</button><button onclick='copyIt()'>Copy Link</button><button onclick='poster()'>Poster</button></div></div><div class='cta'><a href='" + wl + "'>Chat on WhatsApp to Buy</a></div><div id='t'></div><script>" + js + "</script></body></html>"
     return HTMLResponse(html)
+
+
+class AgentCreateReq(BaseModel):
+    full_name: str
+    email: str
+    password: str
+    phone: str = ""
+    bio: str = ""
+    photo_url: str = ""
+
+class ToggleReq(BaseModel):
+    email: str
+    active: bool
+
+class ProfileReq(BaseModel):
+    bio: str = ""
+    photo_url: str = ""
+    phone: str = ""
+
+def _owner(me):
+    if me.get("r") != "owner":
+        raise HTTPException(status_code=403, detail="Owner only")
+
+@router.get("/agents")
+def agents_list(request: Request, db: Session = Depends(get_db)):
+    _owner(_auth(request))
+    out = []
+    for a in db.query(Agent).all():
+        out.append({"id": a.id, "full_name": a.full_name, "email": a.email, "phone": a.phone_number or "", "active": bool(a.is_active), "page": "/api/v1/dashboard/agent/" + str(a.id)})
+    return out
+
+@router.post("/agents/create")
+def agents_create(req: AgentCreateReq, request: Request, db: Session = Depends(get_db)):
+    _owner(_auth(request))
+    if db.query(Agent).filter(Agent.email == req.email).first():
+        raise HTTPException(status_code=400, detail="Email already exists")
+    a = Agent(full_name=req.full_name, email=req.email, password_hash=_hash_pw(req.password), role="agent", phone_number=req.phone, bio=req.bio, photo_url=req.photo_url, is_active=True)
+    db.add(a); db.commit(); db.refresh(a)
+    return {"message": "Agent profile created", "agent_id": a.id, "page": "/api/v1/dashboard/agent/" + str(a.id)}
+
+@router.post("/agents/toggle")
+def agents_toggle(req: ToggleReq, request: Request, db: Session = Depends(get_db)):
+    _owner(_auth(request))
+    a = db.query(Agent).filter(Agent.email == req.email).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    a.is_active = req.active
+    db.commit()
+    return {"message": ("Agent ACTIVATED" if req.active else "Agent DEACTIVATED"), "email": req.email}
+
+@router.post("/products/mine")
+def products_mine(request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    ag = db.query(Agent).filter(Agent.email == me["e"]).first()
+    if me.get("r") == "owner":
+        prods = db.query(Product).filter(Product.business_id == SODANGI_BUSINESS_ID).all()
+    else:
+        if not ag:
+            return []
+        maps = db.query(ProductAgent).filter(ProductAgent.agent_id == ag.id).all()
+        pids = [m.product_id for m in maps]
+        prods = db.query(Product).filter(Product.id.in_(pids)).all() if pids else []
+    out = []
+    for p in prods:
+        imgs = _extract_imgs_list(p.images)
+        out.append({"id": p.id, "name": p.name, "price": p.price, "media": len(imgs), "first_image": imgs[0] if imgs else "", "images": imgs})
+    return out
+
+class DeleteReq(BaseModel):
+    product_id: int
+
+@router.post("/products/delete")
+def products_delete(req: DeleteReq, request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    if me.get("r") != "owner":
+        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
+        if not ag or not db.query(ProductAgent).filter(ProductAgent.product_id == req.product_id, ProductAgent.agent_id == ag.id).first():
+            raise HTTPException(status_code=403, detail="Not your car")
+    p = db.query(Product).filter(Product.id == req.product_id).first()
+    if p:
+        db.delete(p)
+    for m in db.query(ProductAgent).filter(ProductAgent.product_id == req.product_id).all():
+        db.delete(m)
+    db.commit()
+    return {"message": "Product deleted"}
+
+class PhotosReq(BaseModel):
+    product_id: int
+    image_urls: list
+
+@router.post("/products/photos")
+def products_photos(req: PhotosReq, request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    if me.get("r") != "owner":
+        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
+        if not ag or not db.query(ProductAgent).filter(ProductAgent.product_id == req.product_id, ProductAgent.agent_id == ag.id).first():
+            raise HTTPException(status_code=403, detail="Not your car")
+    p = db.query(Product).filter(Product.id == req.product_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Product not found")
+    p.images = json.dumps([str(x) for x in req.image_urls])
+    db.commit()
+    return {"message": "Photos updated", "count": len(req.image_urls)}
+
+@router.post("/profile/update")
+def profile_update(req: ProfileReq, request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    a = db.query(Agent).filter(Agent.email == me["e"]).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    if req.bio: a.bio = req.bio
+    if req.photo_url: a.photo_url = req.photo_url
+    if req.phone: a.phone_number = req.phone
+    db.commit()
+    return {"message": "Profile updated", "page": "/api/v1/dashboard/agent/" + str(a.id)}
+
+@router.get("/profile/me")
+def profile_me(request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    a = db.query(Agent).filter(Agent.email == me["e"]).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return {"full_name": a.full_name, "email": a.email, "phone": a.phone_number or "", "bio": a.bio or "", "photo_url": a.photo_url or "", "page": "/api/v1/dashboard/agent/" + str(a.id)}
