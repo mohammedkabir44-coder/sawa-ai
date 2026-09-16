@@ -13,3 +13,5 @@ python-multipart
 httpx
 email-validator
 tenacity
+
+edge-tts

@@ -188,7 +188,9 @@ def _hash_pw(pw, salt=None):
     return salt + ":" + hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 120000).hex()
 
 def _verify_pw(pw, stored):
-    salt, h = stored.split(":", 1)
+    if not stored or ":" not in str(stored):
+        return False
+    salt, h = str(stored).split(":", 1)
     return hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 120000).hex() == h
 
 def _make_token(email, role):
@@ -642,3 +644,8 @@ def analytics(request: Request, db: Session = Depends(get_db)):
         out.append({"id": a.id, "name": a.full_name, "active": bool(getattr(a, "is_active", True)), "ad_lead": st["ad_lead"], "handoff": st["handoff"], "photo_burst": st["photo_burst"], "video_sent": st["video_sent"]})
     recent = [{"agent_id": r.agent_id, "type": r.event_type, "customer": r.customer_phone, "product": r.product_name, "time": r.created_at} for r in rows[-15:]][::-1]
     return {"agents": out, "recent": recent, "total_events": len(rows)}
+
+
+@router.get("/ping")
+def ping():
+    return {"status": "alive", "message": "Server is awake and responding!"}
