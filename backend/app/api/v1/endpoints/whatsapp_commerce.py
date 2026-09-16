@@ -130,9 +130,39 @@ def _extract_img(imgs):
         except: pass
     return str(imgs)
 
+def _extract_imgs(imgs):
+    import json, ast
+    if not imgs:
+        return []
+    if isinstance(imgs, list):
+        return [str(x) for x in imgs]
+    if isinstance(imgs, str):
+        try:
+            v = json.loads(imgs)
+            if isinstance(v, list):
+                return [str(x) for x in v]
+        except Exception:
+            pass
+        try:
+            v = ast.literal_eval(imgs)
+            if isinstance(v, list):
+                return [str(x) for x in v]
+        except Exception:
+            pass
+        return [imgs]
+    return []
+
+def _is_video(url):
+    low = str(url).lower().split("?")[0]
+    return low.endswith((".mp4", ".mov", ".webm", ".mkv", ".avi")) or "/video/" in low
+
 def _get_product_catalog(db: Session, business_id: int) -> List[Dict[str, Any]]:
     products = db.query(Product).filter(Product.business_id == business_id, Product.is_active.is_(True)).all()
-    return [{"id": p.id, "name": p.name, "price": p.price, "stock_quantity": p.stock, "image_url": _extract_img(p.images)} for p in products]
+    out = []
+    for p in products:
+        urls = _extract_imgs(p.images)
+        out.append({"id": p.id, "name": p.name, "price": p.price, "stock_quantity": p.stock, "image_url": urls[0] if urls else "", "image_urls": urls})
+    return out
 
 
 def _smart_reply(text_body: str, catalog: List[Dict[str, Any]]) -> str:
@@ -150,24 +180,23 @@ def _smart_reply(text_body: str, catalog: List[Dict[str, Any]]) -> str:
 
 
 
-def _match_image(catalog, reply, text_body):
+def _match_product(catalog, reply, text_body):
     hay = (str(reply) + " " + str(text_body)).lower()
-    # GHOSTBUSTER: Only look at products that actually have pictures saved!
-    valid_catalog = [p for p in catalog if p.get("image_url")]
-    
+    valid_catalog = [p for p in catalog if p.get("image_urls")]
     for p in valid_catalog:
         words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
         if words and sum(1 for w in words if w in hay) >= len(words):
-            return p["image_url"]
+            return p
     for p in valid_catalog:
         words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
         if words and sum(1 for w in words if w in hay) >= max(1, len(words) - 1):
-            return p["image_url"]
+            return p
     for p in valid_catalog:
         words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
         if any(w in hay for w in words):
-            return p["image_url"]
-    return ""
+            return p
+    return None
+
 
 
 async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[str, Any]) -> Dict[str, Any]:
@@ -176,18 +205,40 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
     business_id = 3
     catalog = _get_product_catalog(db, business_id)
     reply = _smart_reply(text_body, catalog)
+    photos = []
+    videos = []
+    sent_images = 0
+    sent_video = False
     try:
-        # --- OPENAI BRAIN ---
-        ai_reply = _call_openai_brain(text_body, catalog)
+        ai_catalog = [{"id": p["id"], "name": p["name"], "price": p["price"], "stock_quantity": p["stock_quantity"]} for p in catalog]
+        ai_reply = _call_openai_brain(text_body, ai_catalog)
         if ai_reply:
             reply = ai_reply
-        # -------------------
-        image_url = _match_image(catalog, reply, text_body)
-        if image_url:
-            send_result = _direct_send_image(from_number, image_url, reply)
+        prod = _match_product(catalog, reply, text_body)
+        if prod:
+            media = prod.get("image_urls") or []
+            videos = [u for u in media if _is_video(u)]
+            photos = [u for u in media if not _is_video(u)]
+            low = text_body.lower()
+            wants_video = any(k in low for k in ["video", "bidiyo", "vidio", "clip", "footage", "fim"])
+            if wants_video:
+                if videos:
+                    _direct_send_image(from_number, videos[0], reply)
+                    sent_video = True
+                else:
+                    _direct_send(from_number, reply + " (Bidiyo ba ya samuwa a yanzu.)")
+            else:
+                if photos:
+                    for i, u in enumerate(photos[:8]):
+                        cap = reply if i == 0 else ""
+                        _direct_send_image(from_number, u, cap)
+                        sent_images += 1
+                else:
+                    _direct_send(from_number, reply)
         else:
-            send_result = _direct_send(from_number, reply)
-        return {"status": "SENT", "reply": reply, "extracted_url": image_url, "image_sent": bool(image_url), "meta": send_result}
+            _direct_send(from_number, reply)
+        first_url = videos[0] if sent_video else (photos[0] if sent_images else "")
+        return {"status": "SENT", "reply": reply, "extracted_url": first_url, "images_sent": sent_images, "video_sent": sent_video}
     except Exception as exc:
         meta_body = ""
         if hasattr(exc, "read"):
@@ -195,7 +246,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
                 meta_body = exc.read().decode("utf-8")
             except Exception:
                 meta_body = ""
-        return {"status": "SEND_FAILED", "reply": reply, "extracted_url": image_url, "error": str(exc), "meta_response": meta_body}
+        return {"status": "SEND_FAILED", "reply": reply, "extracted_url": "", "images_sent": sent_images, "video_sent": sent_video, "error": str(exc), "meta_response": meta_body}
 
 
 @router.get("/webhook", response_class=PlainTextResponse)
