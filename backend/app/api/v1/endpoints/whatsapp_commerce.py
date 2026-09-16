@@ -57,20 +57,17 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
     api_key = "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".strip()
     if not api_key: return ""
 
-    system_prompt = f"""You are a friendly, expert sales assistant for Sodangi Motors in Nigeria.
-    You speak fluent Hausa and English.
-    Your inventory is: {json.dumps(catalog, default=str)}
-    Pick the BEST single matching product from the inventory. Greet them, tell them the price enthusiastically in Hausa, and mention ONLY that specific EXACT product name so the system can send a photo. Never list the whole inventory.
-    Keep replies short (under 3 sentences).
-    If they just say hello (Sannu/Barka), greet them back in Hausa and ask what they want to buy."""
+    system_prompt = f"""You are the sales brain of Sodangi Motors Nigeria. Reply in the customer's language (Hausa or English).
+    Inventory: {json.dumps(catalog, default=str)}
+    Rules: 1) Understand ANY message instantly - cars, prices, greetings, questions. 2) If a product matches, mention its EXACT name and price enthusiastically. 3) Maximum 2 sentences. 4) If greeting only, ask what car they want and suggest 2-3 options from inventory. 5) Never say you are an AI."""
 
     payload = {
-        "model": "openai/gpt-oss-120b",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
         ],
-        "temperature": 0.7
+        "temperature": 0.5
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request("https://api.groq.com/openai/v1/chat/completions", data=data, method="POST")
@@ -79,7 +76,7 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
     req.add_header("User-Agent", "SodangiBot/1.0")
 
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             return result["choices"][0]["message"]["content"]
     except Exception as e:
@@ -217,6 +214,32 @@ def _match_product(catalog, reply, text_body):
 
 
 
+
+def _fast_intent(text_body, catalog):
+    low = str(text_body).lower()
+    greetings = ["sannu", "barka", "hello", "hey", "good morning", "good afternoon", "good evening", "salam", "ina kwana", "hi"]
+    is_greeting = any(g in low for g in greetings)
+    best = None
+    best_score = 0
+    for p in catalog:
+        words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
+        score = sum(1 for w in words if w in low)
+        if score > best_score:
+            best_score = score
+            best = p
+    price_kw = ["price", "farashi", "how much", "nawa", "cost", "kudi"]
+    if best:
+        if any(k in low for k in price_kw):
+            return "Farashin " + str(best["name"]) + " shine ₦" + format(float(best["price"] or 0), ",.0f") + " kawai! Yana nan a stock yanzu. Ga hotuna a kasa!"
+        return "Sannu! " + str(best["name"]) + " yana nan a showroom! Farashi: ₦" + format(float(best["price"] or 0), ",.0f") + ". Adadi: " + str(best["stock_quantity"]) + ". Ga hotuna a kasa!"
+    if is_greeting:
+        names = ", ".join(str(p["name"]) for p in catalog[:4]) if catalog else ""
+        return "Sannu! Barka da zuwa Sodangi Motors! 🚗 Menene kake nema? Muna da: " + names + ". Rubuta sunan motar don ganin hotuna!"
+    if catalog:
+        names = ", ".join(str(p["name"]) + " (₦" + format(float(p["price"] or 0), ",.0f") + ")" for p in catalog[:6])
+        return "Sannu! Ga kayayyakinmu na yau: " + names + ". Rubuta sunan motar don ganin hotuna da bidiyo!"
+    return "Sannu! Na karbi sakonka. Showroom yana shiryawa - sake gwadawa nan kadan!"
+
 async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[str, Any]) -> Dict[str, Any]:
     from_number = msg.get("from", "")
     text_body = msg.get("text", {}).get("body", "")
@@ -236,7 +259,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
                         catalog = filtered
         except Exception as ad_exc:
             print("AD FILTER ERROR:", repr(ad_exc))
-    reply = _smart_reply(text_body, catalog)
+    reply = _fast_intent(text_body, catalog)
     photos = []
     videos = []
     sent_images = 0
