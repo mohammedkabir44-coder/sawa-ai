@@ -31,7 +31,6 @@ def _bulletproof_heal():
     except Exception as e:
         print("BULLETPROOF HEAL FAILED:", repr(e))
 
-_bulletproof_heal()
 
 router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
 @router.get("/force-heal")
@@ -119,7 +118,6 @@ def _ensure_media_schema():
     except Exception:
         pass
 
-_ensure_media_schema()
 
 
 class Agent(Base):
@@ -545,7 +543,6 @@ def _heal_agent_schema():
 
 _heal_agent_schema()
 
-_heal_images_column()
 
 @router.get("/debug-storage")
 def debug_storage(db: Session = Depends(get_db)):
