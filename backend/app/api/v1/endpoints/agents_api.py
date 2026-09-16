@@ -413,152 +413,61 @@ nav button.on { color: #10b981 !important; background: rgba(16,185,129,0.1) !imp
 <div id="toast"></div>
 <script>
 
-(function(){
-  var _g = document.getElementById.bind(document);
-  document.getElementById = function(id){
-    var el = _g(id);
-    if(!el) return new Proxy({}, {
-        get: function(t, p) {
-            if (p === 'style') return new Proxy({}, { set: function(){return true}, get: function(){return ''} });
-            if (typeof p === 'string' && (p.startsWith('on') || p === 'focus' || p === 'scrollIntoView' || p === 'appendChild' || p === 'click' || p === 'replace' || p === 'split')) return function(){return ''};
-            return '';
-        }
-    });
-    return el;
-  };
-})();
-
-localStorage.removeItem('sodangi_token');localStorage.removeItem('sodangi_role');localStorage.removeItem('sodangi_name');
 var API="/api/v1/dashboard";
 var TOKEN=localStorage.getItem("sodangi_token")||"";
 var ROLE=localStorage.getItem("sodangi_role")||"";
 var NAME=localStorage.getItem("sodangi_name")||"";
-function toast(m,c){var t=document.getElementById("toast");t.textContent=m;t.style.background=c||"#16a34a";t.style.display="block";setTimeout(function(){t.style.display="none";},3500);}
-function showTab(w){document.getElementById("tabLogin").className="tab"+(w=="login"?" active":"");document.getElementById("tabReg").className="tab"+(w=="reg"?" active":"");document.getElementById("loginForm").className=(w=="login"?"":"hidden");document.getElementById("regForm").className=(w=="reg"?"":"hidden");}
-async function api(path,method,body,auth){var h={"Content-Type":"application/json"};if(auth){h["Authorization"]="Bearer "+TOKEN;}var r=await fetch(API+path,{method:method,headers:h,body:body?JSON.stringify(body):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
-function enterDash(){document.getElementById("authCard").className="card hidden";document.getElementById("dashCard").className="card";document.getElementById("listCard").className="card";document.getElementById("waCard").className=(ROLE=="owner"?"card":"card hidden");document.getElementById("setCard").className=(ROLE=="owner"?"card":"card hidden");document.getElementById("logoutBtn").className="btn-ghost";document.getElementById("who").textContent=NAME+" ("+ROLE+")";loadProducts();loadSettings();}
-async function doLogin(){try{var r=await api("/login","POST",{email:document.getElementById("liEmail").value,password:document.getElementById("liPass").value});TOKEN=r.token;ROLE=r.role;NAME=r.full_name;localStorage.setItem("sodangi_token",TOKEN);localStorage.setItem("sodangi_role",ROLE);localStorage.setItem("sodangi_name",NAME);toast("Welcome "+NAME+"!");enterDash();}catch(e){toast(e.message,"#dc2626");}}
-async function doRegister(){try{await api("/register","POST",{full_name:document.getElementById("rgName").value,email:document.getElementById("rgEmail").value,password:document.getElementById("rgPass").value});toast("Account created! Now login.");showTab("login");}catch(e){toast(e.message,"#dc2626");}}
+var CARS=[];var CLOUD={name:"",preset:""};
+
+function toast(m,c){var t=document.getElementById("toast");if(!t)return;t.textContent=m;t.style.background=c||"#10B981";t.style.display="block";setTimeout(function(){t.style.display="none";},3500);}
+async function api(p,m,b,a){var h={"Content-Type":"application/json"};if(a)h["Authorization"]="Bearer "+TOKEN;var r=await fetch(API+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
+
+function go(tab){
+  ["Upload","Cars","Agents","Profile","Media"].forEach(function(t){
+    var el=document.getElementById("tab"+t);if(el)el.className="card hidden";
+    var nb=document.getElementById("nav"+t);if(nb)nb.className=nb.className.replace(" on","");
+  });
+  var el=document.getElementById("tab"+tab);if(el)el.className="card";
+  var nb=document.getElementById("nav"+tab);if(nb)nb.className=nb.className+" on";
+  if(tab==="Cars")loadCars();if(tab==="Agents")loadAgents();if(tab==="Profile")loadProfile();
+}
+
+function enterDash(){
+  var ac=document.getElementById("authCard");if(ac)ac.className="card hidden";
+  var bn=document.getElementById("bottomNav");if(bn)bn.className="";
+  var who=document.getElementById("who");if(who)who.textContent=NAME+" ("+ROLE+")";
+  if(ROLE==="owner"){var na=document.getElementById("navAgents");if(na)na.className="";var nm=document.getElementById("navMedia");if(nm)nm.className="";}
+  loadSettings();go("Upload");
+}
+
+async function doLogin(){try{var r=await api("/login","POST",{email:document.getElementById("liEmail").value,password:document.getElementById("liPass").value});TOKEN=r.token;ROLE=r.role;NAME=r.full_name;localStorage.setItem("sodangi_token",TOKEN);localStorage.setItem("sodangi_role",ROLE);localStorage.setItem("sodangi_name",NAME);toast("Welcome "+NAME+"!");enterDash();}catch(e){toast(e.message,"#EF4444");}}
 function logout(){localStorage.removeItem("sodangi_token");localStorage.removeItem("sodangi_role");localStorage.removeItem("sodangi_name");location.reload();}
-async function loadProducts(){try{var ps=await api("/products","GET");var b=document.getElementById("prodBody");b.innerHTML="";ps.forEach(function(p){var tr=document.createElement("tr");var imgs=p.images||[];
-      var thumb=imgs.length?"<img src='"+imgs[0]+"' style='width:44px;height:44px;object-fit:cover;border-radius:6px;margin-right:8px;vertical-align:middle'>":"";
-      var gal=imgs.length?"<a href='"+imgs[0]+"' target='_blank' style='color:#22c55e'>"+imgs.length+" media</a>":"-";
-      tr.innerHTML="<td>"+thumb+p.name+"</td><td>&#8358;"+Number(p.price).toLocaleString()+"</td><td>"+p.stock+"</td><td>"+gal+"</td>";b.appendChild(tr);});}catch(e){toast(e.message,"#dc2626");}}
-async function uploadProduct(){
-  var nameV=document.getElementById("pName").value;
-  var priceV=parseFloat(document.getElementById("pPrice").value);
-  if(!nameV||isNaN(priceV)){toast("Fill product name and price first","#dc2626");return;}
-  var filesCount=document.getElementById("pFile").files.length+document.getElementById("pVideo").files.length;
-  var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){urls=[];}
-  var vid=document.getElementById("pVid").value;
-  if(vid){urls.push(vid);}
-  if(filesCount>0&&urls.length===0){toast("No media uploaded yet! Pick your files and wait for the green check BEFORE saving.","#dc2626");return;}
-  try{
-    var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);
-    toast(r.message+" | "+(r.images_saved||0)+" media saved in DB");
-    document.getElementById("pFile").value="";
-    document.getElementById("pVideo").value="";
-    document.getElementById("pImg").value="";
-    document.getElementById("pVid").value="";
-    document.getElementById("mediaPreview").textContent="";
-    document.getElementById("videoPreview").textContent="";
-    loadProducts();
-  }catch(e){toast(e.message,"#dc2626");}
-}
 
-async function connectWA(){try{var r=await api("/connect-whatsapp","POST",{phone_number_id:document.getElementById("waPid").value,access_token:document.getElementById("waTok").value,display_name:document.getElementById("waName").value},true);toast(r.message);}catch(e){toast(e.message,"#dc2626");}}
+async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";var c1=document.getElementById("cCloud");if(c1)c1.value=CLOUD.name;var c2=document.getElementById("cPreset");if(c2)c2.value=CLOUD.preset;}catch(e){}}
+async function saveSettings(){try{var r=await api("/settings","POST",{cloud_name:document.getElementById("cCloud").value,upload_preset:document.getElementById("cPreset").value},true);CLOUD.name=document.getElementById("cCloud").value;CLOUD.preset=document.getElementById("cPreset").value;toast(r.message);}catch(e){toast(e.message,"#EF4444");}}
 
-var CLOUD={name:"",preset:""};
-async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";document.getElementById("cCloud").value=CLOUD.name;document.getElementById("cPreset").value=CLOUD.preset;document.getElementById("cfgBanner").className=(ROLE=="owner"&&!CLOUD.name)?"card":"card hidden";}catch(e){}}
-async function saveSettings(){try{var r=await api("/settings","POST",{cloud_name:document.getElementById("cCloud").value,upload_preset:document.getElementById("cPreset").value},true);CLOUD.name=document.getElementById("cCloud").value;CLOUD.preset=document.getElementById("cPreset").value;toast(r.message);document.getElementById("cfgBanner").className="card hidden";}catch(e){toast(e.message,"#dc2626");}}
-async function putCloudinary(f){
-  var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);
-  var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});
-  if(!r.ok)throw new Error("cloudinary "+r.status);
-  var d=await r.json();return d.secure_url;
-}
-async function putPixeldrain(f){
-  var fd=new FormData();fd.append("file",f);
-  var r=await fetch("https://pixeldrain.com/api/file/file",{method:"POST",body:fd});
-  if(!r.ok)throw new Error("pixeldrain "+r.status);
-  var d=await r.json();
-  if(!d.id)throw new Error("pixeldrain no id");
-  return "https://pixeldrain.com/api/file/"+d.id;
-}
-async function putRelay(f){
-  if(f.size>4000000)throw new Error("too big for relay");
-  var fd=new FormData();fd.append("file",f);
-  var r=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd});
-  if(!r.ok)throw new Error("relay "+r.status);
-  var d=await r.json();return d.url;
-}
-async function uploadOne(f){
-  var chain=[];
-  if(CLOUD.name&&CLOUD.preset)chain.push(putCloudinary);
-  chain.push(putPixeldrain);
-  chain.push(putRelay);
-  var lastErr="unknown";
-  for(var a=0;a<chain.length;a++){
-    for(var attempt=0;attempt<2;attempt++){
-      try{return await chain[a](f);}catch(e){lastErr=e.message;}
-    }
-  }
-  throw new Error(f.name+": "+lastErr);
-}
-async function uploadMedia(){
-  var files=document.getElementById("pFile").files;
-  if(!files.length)return;
-  var prev=document.getElementById("mediaPreview");
-  var urls=[];var failed=[];
-  for(var i=0;i<files.length;i++){
-    prev.textContent="Uploading "+(i+1)+" of "+files.length+": "+files[i].name;
-    try{var u=await uploadOne(files[i]);urls.push(u);}
-    catch(e){failed.push(files[i].name+" ["+e.message+"]");}
-  }
-  document.getElementById("pImg").value=JSON.stringify(urls);
-  var msg="Uploaded "+urls.length+"/"+files.length+" file(s).";
-  if(failed.length)msg+=" Failed: "+failed.join(", ");
-  prev.innerHTML=(urls.length==files.length?"✅ ":"⚠️ ")+msg;
-  toast(msg, urls.length==files.length?"#16a34a":"#dc2626");
-}
+async function putCloudinary(f){var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});if(!r.ok)throw new Error("cloudinary "+r.status);var d=await r.json();return d.secure_url;}
+async function putRelay(f){if(f.size>4000000)throw new Error("too big");var fd=new FormData();fd.append("file",f);var r=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd});if(!r.ok)throw new Error("relay "+r.status);var d=await r.json();return d.url;}
+async function uploadOne(f){var chain=[];if(CLOUD.name&&CLOUD.preset)chain.push(putCloudinary);chain.push(putRelay);var lastErr="unknown";for(var a=0;a<chain.length;a++){for(var att=0;att<2;att++){try{return await chain[a](f);}catch(e){lastErr=e.message;}}}throw new Error(f.name+": "+lastErr);}
 
-async function testEngine(){
-  var prev=document.getElementById("mediaPreview");
-  try{
-    var c=document.createElement("canvas");c.width=8;c.height=8;
-    var ctx=c.getContext("2d");ctx.fillStyle="#22c55e";ctx.fillRect(0,0,8,8);
-    var blob=await new Promise(function(res){c.toBlob(res,"image/png");});
-    var f=new File([blob],"engine-test.png",{type:"image/png"});
-    prev.textContent="Testing media engine...";
-    var u=await uploadOne(f);
-    prev.innerHTML="✅ Engine OK: <a href='"+u+"' target='_blank' style='color:#22c55e'>"+u.slice(0,60)+"</a>";
-    toast("Media engine works! Select your gallery now.");
-  }catch(e){
-    prev.textContent="Engine test failed: "+e.message;
-    toast("Engine test failed: "+e.message,"#dc2626");
-  }
-}
+async function uploadMedia(){var files=document.getElementById("pFile").files;if(!files.length)return;var prev=document.getElementById("mediaPreview");var urls=[];var failed=[];for(var i=0;i<files.length;i++){prev.textContent="Uploading "+(i+1)+" of "+files.length+"...";try{var u=await uploadOne(files[i]);urls.push(u);}catch(e){failed.push(files[i].name);}}document.getElementById("pImg").value=JSON.stringify(urls);prev.textContent="Uploaded "+urls.length+"/"+files.length+" photos.";toast("Photos ready!");}
+async function uploadVideo(){var f=document.getElementById("pVideo").files[0];if(!f)return;var prev=document.getElementById("videoPreview");prev.textContent="Uploading video...";try{var u=await uploadOne(f);document.getElementById("pVid").value=u;prev.textContent="Video ready!";}catch(e){prev.textContent="Failed";toast(e.message,"#EF4444");}}
 
-async function uploadVideo(){
-  var f=document.getElementById("pVideo").files[0];
-  if(!f)return;
-  var prev=document.getElementById("videoPreview");
-  prev.textContent="Uploading video "+f.name+" ... (videos are big, be patient)";
-  try{
-    var u=await uploadOne(f);
-    document.getElementById("pVid").value=u;
-    prev.innerHTML="Video ready! <a href='"+u+"' target='_blank' style='color:#22c55e'>Preview</a>";
-    toast("Video uploaded! Customers get it only when they ask for bidiyo.");
-  }catch(e){
-    prev.textContent="Video upload failed: "+e.message;
-    toast("Video upload failed: "+e.message,"#dc2626");
-  }
-}
+async function uploadProduct(){var nameV=document.getElementById("pName").value;var priceV=parseFloat(document.getElementById("pPrice").value);if(!nameV||isNaN(priceV)){toast("Fill name and price","#EF4444");return;}var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){urls=[];}var vid=document.getElementById("pVid").value;if(vid)urls.push(vid);try{var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast("Published!");document.getElementById("pName").value="";document.getElementById("pPrice").value="";document.getElementById("pDesc").value="";document.getElementById("pFile").value="";document.getElementById("pVideo").value="";document.getElementById("pImg").value="";document.getElementById("pVid").value="";document.getElementById("mediaPreview").textContent="";document.getElementById("videoPreview").textContent="";go("Cars");}catch(e){toast(e.message,"#EF4444");}}
 
-function shareAd(){if(!AD_URL){toast("Open Profile tab first","#dc2626");return;}var u=location.origin+AD_URL;if(navigator.share){navigator.share({title:"Sodangi Motors Showroom",text:"Check my showroom!",url:u}).catch(function(){});}else{copyAd();}}
-function copyAd(){if(!AD_URL){toast("Open Profile tab first","#dc2626");return;}var u=location.origin+AD_URL;if(navigator.clipboard){navigator.clipboard.writeText(u).then(function(){toast("Ad link copied! Paste on Instagram/Facebook status.");});}else{prompt("Copy your ad link:",u);}}
+async function loadCars(){try{CARS=await api("/products/mine","POST",{},true);renderCars();}catch(e){}}
+function renderCars(){var box=document.getElementById("carsList");box.innerHTML="";if(!CARS.length){box.innerHTML="<p style='color:#94A3B8;text-align:center;padding:20px'>No vehicles yet. Add your first car!</p>";return;}CARS.forEach(function(c){var d=document.createElement("div");d.className="car";var gal="";(c.images||[]).forEach(function(u,i){gal+='<div><img src="'+u+'"><button data-act="delphoto" data-pid="'+c.id+'" data-idx="'+i+'">x</button></div>';});d.innerHTML='<h3>'+c.name+'</h3><div class="price">₦'+Number(c.price).toLocaleString()+'</div><div class="gal">'+gal+'</div><button class="btn btn-danger" data-act="delcar" data-pid="'+c.id+'">Delete Vehicle</button>';box.appendChild(d);});}
+
+async function loadAgents(){try{var as=await api("/agents","GET",null,true);var box=document.getElementById("agentsList");box.innerHTML="";as.forEach(function(a){var d=document.createElement("div");d.className="car";d.innerHTML='<h3>'+a.full_name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p style="color:#94A3B8;font-size:13px;margin:8px 0">'+a.email+' | '+a.phone+'</p><button class="btn btn-ghost" data-act="toggle" data-email="'+a.email+'" data-on="'+(a.active?0:1)+'">'+(a.active?"Deactivate":"Activate")+'</button>';box.appendChild(d);});}catch(e){}}
+async function createAgent(){try{var r=await api("/agents/create","POST",{full_name:document.getElementById("aName").value,email:document.getElementById("aEmail").value,password:document.getElementById("aPass").value,phone:document.getElementById("aPhone").value,bio:document.getElementById("aBio").value,photo_url:document.getElementById("aPhotoUrl").value},true);toast("Agent created!");loadAgents();}catch(e){toast(e.message,"#EF4444");}}
+
+async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;document.getElementById("mPhotoUrl").value=me.photo_url;document.getElementById("myPage").innerHTML='Your Ad Page: <a href="'+location.origin+me.page.replace("/agent/","/ad/")+'" target="_blank">Open</a>';}catch(e){}}
+async function saveProfile(){try{var r=await api("/profile/update","POST",{bio:document.getElementById("mBio").value,photo_url:document.getElementById("mPhotoUrl").value,phone:document.getElementById("mPhone").value},true);toast("Profile saved!");}catch(e){toast(e.message,"#EF4444");}}
+
+document.addEventListener("click",function(ev){var b=ev.target;while(b&&b.tagName!=="BUTTON"){b=b.parentElement;}if(!b)return;var act=b.getAttribute("data-act");if(!act)return;if(act==="delcar"){if(confirm("Delete?"))api("/products/delete","POST",{product_id:parseInt(b.getAttribute("data-pid"))},true).then(function(){toast("Deleted");loadCars()})}if(act==="toggle"){api("/agents/toggle","POST",{email:b.getAttribute("data-email"),active:b.getAttribute("data-on")==="1"},true).then(function(){toast("Toggled");loadAgents()})}});
 
 if(TOKEN){enterDash();}
+
 </script>
 </body>
 </html>"""
