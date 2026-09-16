@@ -230,9 +230,11 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
             if agx:
                 pids_ad = set(mm.product_id for mm in db.query(_agad.ProductAgent).filter(_agad.ProductAgent.agent_id == aid).all())
                 if pids_ad:
-                    catalog = [pc for pc in catalog if pc["id"] in pids_ad]
-        except Exception:
-            pass
+                    filtered = [pc for pc in catalog if pc["id"] in pids_ad]
+                    if filtered:
+                        catalog = filtered
+        except Exception as ad_exc:
+            print("AD FILTER ERROR:", repr(ad_exc))
     reply = _smart_reply(text_body, catalog)
     photos = []
     videos = []
