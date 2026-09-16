@@ -321,7 +321,7 @@ th{color:var(--muted);font-size:12px}
       <div><label>Price (Naira)</label><input id="pPrice" type="number" placeholder="7500000"></div>
     </div>
     <div class="row">
-      <div><label>Product Images & Video (select many from gallery)</label><input type="file" id="pFile" accept="image/*,video/*" multiple onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div><button class="btn-ghost" style="margin-top:8px;border:1px solid #334155;color:#7dd3fc" onclick="testEngine()">Test Media Engine</button></div>
+      <div><label>Product Photos (select many from gallery)</label><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div><button class="btn-ghost" style="margin-top:8px;border:1px solid #334155;color:#7dd3fc" onclick="testEngine()">Test Media Engine</button><div style="margin-top:10px"><label>Product Video (optional - sent only when customer asks for bidiyo)</label><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()"><input id="pVid" type="hidden"><div id="videoPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div></div></div>
       <div><label>Stock</label><input id="pStock" type="number" value="5"></div>
     </div>
     <label>Description</label><input id="pDesc" placeholder="Short sales description">
@@ -368,15 +368,20 @@ async function uploadProduct(){
   var nameV=document.getElementById("pName").value;
   var priceV=parseFloat(document.getElementById("pPrice").value);
   if(!nameV||isNaN(priceV)){toast("Fill product name and price first","#dc2626");return;}
-  var filesCount=document.getElementById("pFile").files.length;
+  var filesCount=document.getElementById("pFile").files.length+document.getElementById("pVideo").files.length;
   var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){urls=[];}
+  var vid=document.getElementById("pVid").value;
+  if(vid){urls.push(vid);}
   if(filesCount>0&&urls.length===0){toast("No media uploaded yet! Pick your files and wait for the green check BEFORE saving.","#dc2626");return;}
   try{
-    var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:document.getElementById("pImg").value,description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);
+    var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);
     toast(r.message+" | "+(r.images_saved||0)+" media saved in DB");
     document.getElementById("pFile").value="";
+    document.getElementById("pVideo").value="";
     document.getElementById("pImg").value="";
+    document.getElementById("pVid").value="";
     document.getElementById("mediaPreview").textContent="";
+    document.getElementById("videoPreview").textContent="";
     loadProducts();
   }catch(e){toast(e.message,"#dc2626");}
 }
@@ -451,6 +456,22 @@ async function testEngine(){
   }catch(e){
     prev.textContent="Engine test failed: "+e.message;
     toast("Engine test failed: "+e.message,"#dc2626");
+  }
+}
+
+async function uploadVideo(){
+  var f=document.getElementById("pVideo").files[0];
+  if(!f)return;
+  var prev=document.getElementById("videoPreview");
+  prev.textContent="Uploading video "+f.name+" ... (videos are big, be patient)";
+  try{
+    var u=await uploadOne(f);
+    document.getElementById("pVid").value=u;
+    prev.innerHTML="Video ready! <a href='"+u+"' target='_blank' style='color:#22c55e'>Preview</a>";
+    toast("Video uploaded! Customers get it only when they ask for bidiyo.");
+  }catch(e){
+    prev.textContent="Video upload failed: "+e.message;
+    toast("Video upload failed: "+e.message,"#dc2626");
   }
 }
 
