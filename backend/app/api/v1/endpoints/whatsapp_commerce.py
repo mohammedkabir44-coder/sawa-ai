@@ -281,12 +281,12 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
                     try:
                         _direct_send_image(from_number, videos[0], reply)
                         sent_video = True
-                    try:
-                        from app.api.v1.endpoints import agents_api as _aglog2
-                        if prod.get("agent_id"):
-                            _aglog2.log_event(db, prod["agent_id"], "video_sent", from_number, prod["name"])
-                    except Exception:
-                        pass
+                        try:
+                            from app.api.v1.endpoints import agents_api as _aglog2
+                            if prod.get("agent_id"):
+                                _aglog2.log_event(db, prod["agent_id"], "video_sent", from_number, prod["name"])
+                        except Exception:
+                            pass
                     except Exception:
                         try:
                             _direct_send_document(from_number, videos[0], reply)
