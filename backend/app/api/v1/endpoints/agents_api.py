@@ -33,6 +33,7 @@ def _bulletproof_heal():
 
 _bulletproof_heal()
 
+router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
 @router.get("/force-heal")
 def force_heal():
     try:
@@ -59,7 +60,6 @@ def force_heal():
         import traceback
         return {"status": "FAILED", "error": str(e), "trace": traceback.format_exc()}
 
-router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
 SECRET = "sodangi-sawa-secret-2026-do-not-share"
 
 def _upload_to_catbox(file_bytes, filename, content_type="application/octet-stream"):
@@ -553,7 +553,6 @@ def dashboard_ui():
 
 
 # ---- STORAGE TRUTH SERUM ----
-def 
 
 def _heal_agent_schema():
     try:
@@ -574,7 +573,7 @@ def _heal_agent_schema():
 
 _heal_agent_schema()
 
-_heal_images_column():
+def _heal_images_column():
     try:
         from app.core.database import engine
         from sqlalchemy import text as _sa_text, inspect as _sa_inspect
