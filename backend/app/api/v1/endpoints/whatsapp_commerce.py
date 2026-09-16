@@ -221,6 +221,18 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
     text_body = msg.get("text", {}).get("body", "")
     business_id = 3
     catalog = _get_product_catalog(db, business_id)
+    m_ad = re.search(r"ad:(\d+)", text_body.lower())
+    if m_ad:
+        try:
+            from app.api.v1.endpoints import agents_api as _agad
+            aid = int(m_ad.group(1))
+            agx = db.query(_agad.Agent).filter(_agad.Agent.id == aid, _agad.Agent.is_active.is_(True)).first()
+            if agx:
+                pids_ad = set(mm.product_id for mm in db.query(_agad.ProductAgent).filter(_agad.ProductAgent.agent_id == aid).all())
+                if pids_ad:
+                    catalog = [pc for pc in catalog if pc["id"] in pids_ad]
+        except Exception:
+            pass
     reply = _smart_reply(text_body, catalog)
     photos = []
     videos = []

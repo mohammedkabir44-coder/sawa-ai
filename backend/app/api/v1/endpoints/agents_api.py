@@ -475,6 +475,9 @@ async function uploadVideo(){
   }
 }
 
+function shareAd(){if(!AD_URL){toast("Open Profile tab first","#dc2626");return;}var u=location.origin+AD_URL;if(navigator.share){navigator.share({title:"Sodangi Motors Showroom",text:"Check my showroom!",url:u}).catch(function(){});}else{copyAd();}}
+function copyAd(){if(!AD_URL){toast("Open Profile tab first","#dc2626");return;}var u=location.origin+AD_URL;if(navigator.clipboard){navigator.clipboard.writeText(u).then(function(){toast("Ad link copied! Paste on Instagram/Facebook status.");});}else{prompt("Copy your ad link:",u);}}
+
 if(TOKEN){enterDash();}
 </script>
 </body>
@@ -538,3 +541,29 @@ def debug_storage(db: Session = Depends(get_db)):
         db.rollback()
         info["insert_25_urls_test"] = "FAILED: " + repr(e)
     return info
+
+
+@router.get("/ad/{agent_id}", response_class=HTMLResponse)
+def agent_ad(agent_id: int, db: Session = Depends(get_db)):
+    import urllib.parse as _up
+    a = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not a or not a.is_active:
+        return HTMLResponse("<h2 style='color:#fff;background:#0b1220;padding:40px;text-align:center'>Showroom unavailable</h2>")
+    maps = db.query(ProductAgent).filter(ProductAgent.agent_id == a.id).all()
+    pids = [m.product_id for m in maps]
+    prods = db.query(Product).filter(Product.id.in_(pids), Product.is_active.is_(True)).all() if pids else []
+    cards = ""
+    hero = ""
+    for i, p in enumerate(prods[:6]):
+        imgs = _extract_imgs_list(p.images)
+        u = imgs[0] if imgs else ""
+        if i == 0 and u: hero = u
+        if u: cards += "<div style='background:#151f38;border-radius:12px;overflow:hidden'><img src='" + u + "' style='width:100%;height:140px;object-fit:cover'><div style='padding:8px'><div style='color:#7dd3fc;font-size:13px;font-weight:700'>" + str(p.name) + "</div><div style='color:#22c55e;font-weight:800'>&#8358;" + format(float(p.price or 0), ",.0f") + "</div></div></div>"
+    if not hero and a.photo_url: hero = str(a.photo_url)
+    wt = "Sannu! I saw the showroom ad of Agent " + str(a.full_name) + " (AD:" + str(a.id) + "). Show me their cars!"
+    wl = "https://wa.me/2349079437745?text=" + _up.quote(wt)
+    nj = json.dumps(str(a.full_name)); hj = json.dumps(hero); tj = json.dumps(wt)
+    css = "*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI,Arial}body{background:#0b1220;color:#e5e7eb;padding-bottom:90px}.w{max-width:640px;margin:auto;padding:0 12px}.b{display:inline-block;background:#14532d;color:#86efac;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px;margin:10px 0 6px}.c{background:#151f38;border:1px solid #1e293b;border-radius:16px;padding:12px;margin-top:10px}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.cta{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#0f172a}.cta a{display:block;text-align:center;background:#22c55e;color:#052e16;font-weight:900;font-size:17px;padding:15px;border-radius:14px;text-decoration:none}.r{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.r button{flex:1;min-width:90px;border:0;border-radius:10px;padding:12px 6px;font-size:12px;font-weight:700;background:#1e293b;color:#e5e7eb}#t{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 16px;border-radius:10px;display:none;font-size:13px}"
+    js = "var N=" + nj + ",H=" + hj + ",T=" + tj + ";function toast(m){var t=document.getElementById('t');t.textContent=m;t.style.display='block';setTimeout(function(){t.style.display='none'},3000)}function shareIt(){if(navigator.share){navigator.share({title:N,text:T,url:location.href}).catch(function(){})}else{copyIt()}}function fbIt(){window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href))}function waIt(){window.open('https://wa.me/?text='+encodeURIComponent(T+' '+location.href))}function copyIt(){if(navigator.clipboard){navigator.clipboard.writeText(location.href).then(function(){toast('Ad link copied!')})}else{prompt('Copy:',location.href)}}function poster(){var c=document.createElement('canvas');c.width=1080;c.height=1350;var x=c.getContext('2d');var g=x.createLinearGradient(0,0,0,1350);g.addColorStop(0,'#065f46');g.addColorStop(1,'#0369a1');x.fillStyle=g;x.fillRect(0,0,1080,1350);x.fillStyle='#fff';x.font='bold 60px Arial';x.fillText('SODANGI MOTORS',60,130);x.font='34px Arial';x.fillStyle='#bbf7d0';x.fillText('VERIFIED AGENT SHOWROOM',60,190);function fin(){x.fillStyle='#fff';x.font='bold 78px Arial';x.fillText(N,60,1210);x.font='38px Arial';x.fillStyle='#e0f2fe';x.fillText('Tap ad link to chat on WhatsApp',60,1280);c.toBlob(function(b){var a2=document.createElement('a');a2.href=URL.createObjectURL(b);a2.download='sodangi-ad.png';a2.click();toast('Poster downloaded!')})}var im=new Image();im.crossOrigin='anonymous';im.onload=function(){x.drawImage(im,60,240,960,880);fin()};im.onerror=fin;if(H){im.src=H}else{fin()}}"
+    html = "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" + str(a.full_name) + " | Sodangi Showroom</title><meta property='og:title' content='" + str(a.full_name) + " - Sodangi Motors'><meta property='og:description' content='" + str(a.bio or 'Verified car dealer') + "'><meta property='og:image' content='" + hero + "'><style>" + css + "</style></head><body><img src='" + hero + "' style='width:100%;height:220px;object-fit:cover'><div class='w'><span class='b'>SODANGI MOTORS VERIFIED SHOWROOM AD</span><div class='c' style='display:flex;gap:12px;align-items:center'><img src='" + str(a.photo_url or '') + "' style='width:60px;height:60px;border-radius:50%;object-fit:cover'><div><h1 style='font-size:18px;color:#fff'>" + str(a.full_name) + "</h1><div style='color:#94a3b8;font-size:13px'>" + str(a.phone_number or '') + "</div></div></div><p style='color:#94a3b8;font-size:14px;margin-top:8px'>" + str(a.bio or '') + "</p><div class='g'>" + cards + "</div><div class='r'><button onclick='shareIt()'>Share</button><button onclick='fbIt()'>Facebook</button><button onclick='waIt()'>WhatsApp</button><button onclick='copyIt()'>Copy Link</button><button onclick='poster()'>Poster</button></div></div><div class='cta'><a href='" + wl + "'>Chat on WhatsApp to Buy</a></div><div id='t'></div><script>" + js + "</script></body></html>"
+    return HTMLResponse(html)
