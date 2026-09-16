@@ -1,3 +1,4 @@
+import re
 import os
 """WhatsApp Commerce Engine - simplified reliable build."""
 import hmac
