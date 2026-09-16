@@ -85,6 +85,23 @@ def _call_openai_brain(user_msg: str, catalog: list) -> str:
         print(f"OpenAI Error: {e}")
         return ""
 
+def _direct_send_document(to_number: str, file_url: str, caption: str) -> Dict[str, Any]:
+    token = ""
+    phone_id = "1332619033263966"
+    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    payload = json.dumps({
+        "messaging_product": "whatsapp",
+        "to": to_number,
+        "type": "document",
+        "document": {"link": file_url, "caption": caption, "filename": "sodangi-video.mp4"},
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
 def _direct_send(to_number: str, text: str) -> Dict[str, Any]:
     """Send a WhatsApp text using the PROVEN env credentials."""
     token = "EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD"
@@ -223,8 +240,15 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
             wants_video = any(k in low for k in ["video", "bidiyo", "vidio", "clip", "footage", "fim"])
             if wants_video:
                 if videos:
-                    _direct_send_image(from_number, videos[0], reply)
-                    sent_video = True
+                    try:
+                        _direct_send_image(from_number, videos[0], reply)
+                        sent_video = True
+                    except Exception:
+                        try:
+                            _direct_send_document(from_number, videos[0], reply)
+                            sent_video = True
+                        except Exception:
+                            _direct_send(from_number, reply + " Ga bidiyo: " + videos[0])
                 else:
                     _direct_send(from_number, reply + " (Bidiyo ba ya samuwa a yanzu.)")
             else:
@@ -238,7 +262,7 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
         else:
             _direct_send(from_number, reply)
         first_url = videos[0] if sent_video else (photos[0] if sent_images else "")
-        return {"status": "SENT", "reply": reply, "extracted_url": first_url, "images_sent": sent_images, "video_sent": sent_video}
+        return {"status": "SENT", "reply": reply, "extracted_url": first_url, "images_sent": sent_images, "video_sent": sent_video, "video_url": (videos[0] if videos else "")}
     except Exception as exc:
         meta_body = ""
         if hasattr(exc, "read"):
