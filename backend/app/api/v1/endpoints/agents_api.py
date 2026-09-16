@@ -3,40 +3,13 @@ import json, hmac, hashlib, base64, time, os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, Float, Text, Boolean
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Boolean
 from app.core.database import get_db, Base
 from app.models.product import Product
 
 
 import uuid
 import urllib.request
-
-
-def _bulletproof_heal():
-    try:
-        from app.core.database import engine
-        from sqlalchemy import text as _sa_text, inspect
-        insp = inspect(engine)
-        with engine.connect() as c:
-            # 1. Ensure Agent table exists
-            if not insp.has_table('sodangi_agents'):
-                c.execute(_sa_text("CREATE TABLE sodangi_agents (id SERIAL PRIMARY KEY, full_name VARCHAR, email VARCHAR UNIQUE, password_hash VARCHAR, role VARCHAR DEFAULT 'agent')"))
-                c.commit()
-            # 2. Add missing columns to Agent table
-            cols = [col['name'] for col in insp.get_columns('sodangi_agents')]
-            for col, typ in [("phone_number", "VARCHAR"), ("bio", "TEXT"), ("photo_url", "TEXT"), ("is_active", "BOOLEAN DEFAULT TRUE")]:
-                if col not in cols:
-                    c.execute(_sa_text(f"ALTER TABLE sodangi_agents ADD COLUMN {col} {typ}"))
-                    c.commit()
-            # 3. Ensure ProductAgent table exists
-            if not insp.has_table('sodangi_product_agents'):
-                c.execute(_sa_text("CREATE TABLE sodangi_product_agents (id SERIAL PRIMARY KEY, product_id INTEGER, agent_id INTEGER)"))
-                c.commit()
-        print("BULLETPROOF SCHEMA HEAL SUCCESS")
-    except Exception as e:
-        print("BULLETPROOF HEAL FAILED:", repr(e))
-
-_bulletproof_heal()
 
 router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
 SECRET = "sodangi-sawa-secret-2026-do-not-share"
@@ -108,6 +81,10 @@ class Agent(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     role = Column(String, default="agent")
+    phone_number = Column(String)
+    bio = Column(Text)
+    photo_url = Column(Text)
+    is_active = Column(Boolean, default=True)
     phone_number = Column(String)
     bio = Column(Text)
     photo_url = Column(Text)
@@ -530,7 +507,24 @@ def dashboard_ui():
 # ---- STORAGE TRUTH SERUM ----
 def 
 
+def _heal_agent_schema():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text
+        stmts = [
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS bio TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS photo_url TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        ]
+        with engine.begin() as c:
+            for s in stmts:
+                c.execute(_sa_text(s))
+        print("AGENT SCHEMA HEALED")
+    except Exception as e:
+        print("AGENT SCHEMA HEAL FAILED:", repr(e))
 
+_heal_agent_schema()
 
 _heal_images_column():
     try:
@@ -555,7 +549,24 @@ _heal_images_column():
 
 
 
+def _heal_agent_schema():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text
+        stmts = [
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS bio TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS photo_url TEXT",
+            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+        ]
+        with engine.begin() as c:
+            for s in stmts:
+                c.execute(_sa_text(s))
+        print("AGENT SCHEMA HEALED")
+    except Exception as e:
+        print("AGENT SCHEMA HEAL FAILED:", repr(e))
 
+_heal_agent_schema()
 
 _heal_images_column()
 
@@ -594,7 +605,7 @@ def debug_storage(db: Session = Depends(get_db)):
 def agent_ad(agent_id: int, db: Session = Depends(get_db)):
     import urllib.parse as _up
     a = db.query(Agent).filter(Agent.id == agent_id).first()
-    if not a or not a.is_active:
+    if not a or not getattr(a, 'is_active', True):
         return HTMLResponse("<h2 style='color:#fff;background:#0b1220;padding:40px;text-align:center'>Showroom unavailable</h2>")
     maps = db.query(ProductAgent).filter(ProductAgent.agent_id == a.id).all()
     pids = [m.product_id for m in maps]
