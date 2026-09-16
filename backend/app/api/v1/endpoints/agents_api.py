@@ -499,7 +499,6 @@ def _heal_agent_schema():
     except Exception as e:
         print("AGENT SCHEMA HEAL FAILED:", repr(e))
 
-_heal_agent_schema()
 
 def _heal_images_column():
     try:
@@ -541,7 +540,6 @@ def _heal_agent_schema():
     except Exception as e:
         print("AGENT SCHEMA HEAL FAILED:", repr(e))
 
-_heal_agent_schema()
 
 
 @router.get("/debug-storage")
