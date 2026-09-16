@@ -407,9 +407,9 @@ nav button.on { color: #10b981 !important; background: rgba(16,185,129,0.1) !imp
   <section class="card hidden" id="tabCars"><h2>My Showroom</h2><div id="carsList"></div></section>
   <section class="card hidden" id="tabAgents"><h2>Manage Agents</h2><label>Full Name</label><input id="aName"><label>Email</label><input id="aEmail" type="email"><label>Temp Password</label><input id="aPass" type="password"><label>WhatsApp</label><input id="aPhone" type="tel" placeholder="080..."><label>Bio</label><textarea id="aBio"></textarea><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('aPhoto').click()"><div class="icon">👤</div><p>Upload Photo</p><input type="file" id="aPhoto" accept="image/*" onchange="uploadAgentPhoto()"></div><div id="aPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="aPhotoUrl" type="hidden"><button class="btn btn-primary" onclick="createAgent()">Create Agent</button><h2 style="margin-top:24px">Active Agents</h2><div id="agentsList"></div></section>
   <section class="card hidden" id="tabProfile"><h2>My Profile</h2><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('mPhoto').click()"><div class="icon">📷</div><p>Update Photo</p><input type="file" id="mPhoto" accept="image/*" onchange="uploadMyPhoto()"></div><div id="mPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="mPhotoUrl" type="hidden"><label>WhatsApp</label><input id="mPhone" type="tel"><label>Bio</label><textarea id="mBio"></textarea><button class="btn btn-primary" onclick="saveProfile()">Save Profile</button><div id="myPage" style="margin-top:16px;padding:16px;background:#0F172A;border:1px solid #334155;border-radius:16px;font-size:13px"></div><button class="btn btn-danger" onclick="logout()">Sign Out</button></section>
-  <section class="card hidden" id="tabMedia"><h2>Media Engine</h2><label>Cloudinary Cloud Name</label><input id="cCloud"><label>Upload Preset</label><input id="cPreset"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></section>
+  <section class="card hidden" id="tabStats"><h2>Business Analytics</h2><div id="statsBox"></div></section><section class="card hidden" id="tabMedia"><h2>Media Engine</h2><label>Cloudinary Cloud Name</label><input id="cCloud"><label>Upload Preset</label><input id="cPreset"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></section>
 </main>
-<nav id="bottomNav" class="hidden"><button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button><button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button><button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button><button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button><button id="navMedia" onclick="go('Media')" class="hidden"><span>⚙️</span>API</button></nav>
+<nav id="bottomNav" class="hidden"><button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button><button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button><button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button><button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button><button id="navStats" onclick="go('Stats')" class="hidden"><span>📊</span>Stats</button><button id="navMedia" onclick="go('Media')" class="hidden"><span>⚙️</span>API</button></nav>
 <div id="toast"></div>
 <script>
 
@@ -423,20 +423,21 @@ function toast(m,c){var t=document.getElementById("toast");if(!t)return;t.textCo
 async function api(p,m,b,a){var h={"Content-Type":"application/json"};if(a)h["Authorization"]="Bearer "+TOKEN;var r=await fetch(API+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
 
 function go(tab){
-  ["Upload","Cars","Agents","Profile","Media"].forEach(function(t){
+  ["Upload","Cars","Agents","Profile","Media","Stats"].forEach(function(t){
     var el=document.getElementById("tab"+t);if(el)el.className="card hidden";
     var nb=document.getElementById("nav"+t);if(nb)nb.className=nb.className.replace(" on","");
   });
   var el=document.getElementById("tab"+tab);if(el)el.className="card";
   var nb=document.getElementById("nav"+tab);if(nb)nb.className=nb.className+" on";
   if(tab==="Cars")loadCars();if(tab==="Agents")loadAgents();if(tab==="Profile")loadProfile();
+  if(tab==="Stats")loadStats();
 }
 
 function enterDash(){
   var ac=document.getElementById("authCard");if(ac)ac.className="card hidden";
   var bn=document.getElementById("bottomNav");if(bn)bn.className="";
   var who=document.getElementById("who");if(who)who.textContent=NAME+" ("+ROLE+")";
-  if(ROLE==="owner"){var na=document.getElementById("navAgents");if(na)na.className="";var nm=document.getElementById("navMedia");if(nm)nm.className="";}
+  if(ROLE==="owner"){var na=document.getElementById("navAgents");if(na)na.className="";var nm=document.getElementById("navMedia");if(nm)nm.className="";var ns=document.getElementById("navStats");if(ns)ns.className="";}
   loadSettings();go("Upload");
 }
 
@@ -465,6 +466,8 @@ async function loadProfile(){try{var me=await api("/profile/me","GET",null,true)
 async function saveProfile(){try{var r=await api("/profile/update","POST",{bio:document.getElementById("mBio").value,photo_url:document.getElementById("mPhotoUrl").value,phone:document.getElementById("mPhone").value},true);toast("Profile saved!");}catch(e){toast(e.message,"#EF4444");}}
 
 document.addEventListener("click",function(ev){var b=ev.target;while(b&&b.tagName!=="BUTTON"){b=b.parentElement;}if(!b)return;var act=b.getAttribute("data-act");if(!act)return;if(act==="delcar"){if(confirm("Delete?"))api("/products/delete","POST",{product_id:parseInt(b.getAttribute("data-pid"))},true).then(function(){toast("Deleted");loadCars()})}if(act==="toggle"){api("/agents/toggle","POST",{email:b.getAttribute("data-email"),active:b.getAttribute("data-on")==="1"},true).then(function(){toast("Toggled");loadAgents()})}});
+
+async function loadStats(){try{var s=await api("/analytics","GET",null,true);var box=document.getElementById("statsBox");var html="<p style='color:#94A3B8;font-size:13px'>Total lead events: "+s.total_events+"</p>";s.agents.forEach(function(a){html+='<div class="car"><h3>'+a.name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p style="color:#94A3B8;font-size:13px;margin:6px 0'>📢 Ad Leads: '+a.ad_lead+' | 🤝 Handoffs: '+a.handoff+' | 📸 Photo Bursts: '+a.photo_burst+' | 🎥 Videos: '+a.video_sent+'</p></div>';});html+='<h3 style="margin-top:16px">Recent Activity</h3>';s.recent.forEach(function(r){html+='<p style="color:#94A3B8;font-size:12px;margin:4px 0">['+r.time+'] '+r.type+' | '+r.customer+' | '+r.product+'</p>';});box.innerHTML=html;}catch(e){toast(e.message,"#EF4444");}}
 
 if(TOKEN){enterDash();}
 
@@ -603,3 +606,39 @@ def agent_ad(agent_id: int, db: Session = Depends(get_db)):
     bio = str(getattr(a, "bio", "") or "")
     html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>{a.full_name} | Sodangi Motors</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><meta property="og:title" content="{a.full_name} - Sodangi Motors Showroom"><meta property="og:description" content="{bio or 'Verified car dealer'}"><meta property="og:image" content="{hero}"><style>{css}</style></head><body><div class="hero"><img src="{hero}" alt="Hero"><div class="hero-overlay"></div></div><div class="agent-card"><div class="agent-inner"><img src="{photo_url or 'https://ui-avatars.com/api/?name='+_up.quote(str(a.full_name))+'&background=10B981&color=fff&size=200'}" alt="{a.full_name}"><div class="agent-info"><span class="badge">Verified Agent</span><h1>{a.full_name}</h1><p>{phone}</p></div></div></div><div class="content"><p style="color:#94A3B8;font-size:15px;line-height:1.6;margin-bottom:30px">{bio}</p><h2 class="section-title">Available Vehicles</h2><div class="grid">{cards if cards else '<p style="color:#94A3B8">No vehicles currently listed.</p>'}</div><div class="share-row"><button onclick="shareIt()">📤 Share</button><button onclick="fbIt()">Facebook</button><button onclick="copyIt()">Copy Link</button></div></div><div class="cta"><a href="{wl}">💬 Chat on WhatsApp to Buy</a></div><div id="t"></div><script>{js}</script></body></html>"""
     return HTMLResponse(html)
+
+
+class LeadEvent(Base):
+    __tablename__ = "sodangi_events"
+    id = Column(Integer, primary_key=True)
+    agent_id = Column(Integer, index=True)
+    event_type = Column(String)
+    customer_phone = Column(String)
+    product_name = Column(String)
+    created_at = Column(String)
+
+def log_event(db, agent_id, event_type, customer_phone="", product_name=""):
+    try:
+        LeadEvent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        import datetime as _dt
+        db.add(LeadEvent(agent_id=agent_id, event_type=event_type, customer_phone=str(customer_phone), product_name=str(product_name), created_at=_dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M")))
+        db.commit()
+    except Exception as e:
+        print("LOG EVENT FAILED:", repr(e))
+
+@router.get("/analytics")
+def analytics(request: Request, db: Session = Depends(get_db)):
+    _owner(_auth(request))
+    LeadEvent.__table__.create(bind=db.get_bind(), checkfirst=True)
+    rows = db.query(LeadEvent).all()
+    per = {}
+    for r in rows:
+        per.setdefault(r.agent_id, {"ad_lead": 0, "handoff": 0, "photo_burst": 0, "video_sent": 0})
+        if r.event_type in per[r.agent_id]:
+            per[r.agent_id][r.event_type] += 1
+    out = []
+    for a in db.query(Agent).all():
+        st = per.get(a.id, {"ad_lead": 0, "handoff": 0, "photo_burst": 0, "video_sent": 0})
+        out.append({"id": a.id, "name": a.full_name, "active": bool(getattr(a, "is_active", True)), "ad_lead": st["ad_lead"], "handoff": st["handoff"], "photo_burst": st["photo_burst"], "video_sent": st["video_sent"]})
+    recent = [{"agent_id": r.agent_id, "type": r.event_type, "customer": r.customer_phone, "product": r.product_name, "time": r.created_at} for r in rows[-15:]][::-1]
+    return {"agents": out, "recent": recent, "total_events": len(rows)}

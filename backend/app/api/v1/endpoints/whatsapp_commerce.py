@@ -281,6 +281,12 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
                     try:
                         _direct_send_image(from_number, videos[0], reply)
                         sent_video = True
+                    try:
+                        from app.api.v1.endpoints import agents_api as _aglog2
+                        if prod.get("agent_id"):
+                            _aglog2.log_event(db, prod["agent_id"], "video_sent", from_number, prod["name"])
+                    except Exception:
+                        pass
                     except Exception:
                         try:
                             _direct_send_document(from_number, videos[0], reply)
@@ -295,6 +301,12 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
                         cap = reply if i == 0 else ""
                         _direct_send_image(from_number, u, cap)
                         sent_images += 1
+                    if sent_images and prod.get("agent_id"):
+                        try:
+                            from app.api.v1.endpoints import agents_api as _aglog
+                            _aglog.log_event(db, prod["agent_id"], "photo_burst", from_number, prod["name"])
+                        except Exception:
+                            pass
                 else:
                     _direct_send(from_number, reply)
         else:
@@ -347,6 +359,98 @@ async def send_test():
         return {"status": "FAILED", "error": str(e), "environment": getattr(settings, "ENVIRONMENT", "MISSING")}
 
 
+
+def _transcribe(audio_bytes):
+    try:
+        import uuid as _u
+        boundary = _u.uuid4().hex
+        body = b""
+        body += ("--" + boundary + "\r\n").encode()
+        body += b'Content-Disposition: form-data; name="file"; filename="voice.ogg"\r\n'
+        body += b"Content-Type: audio/ogg\r\n\r\n"
+        body += audio_bytes
+        body += ("\r\n--" + boundary + "\r\n").encode()
+        body += b'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n'
+        body += ("--" + boundary + "--\r\n").encode()
+        req = urllib.request.Request("https://api.groq.com/openai/v1/audio/transcriptions", data=body, method="POST")
+        req.add_header("Authorization", "Bearer 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")
+        req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            return json.loads(resp.read().decode("utf-8")).get("text", "")
+    except Exception as e:
+        print("TRANSCRIBE FAILED:", repr(e))
+        return ""
+
+async def _voice_reply(db, to_number, text):
+    if not text:
+        return
+    from app.api.v1.endpoints import agents_api as _agset
+    row = db.query(_agset.Setting).filter(_agset.Setting.key == "cloud_name").first()
+    row2 = db.query(_agset.Setting).filter(_agset.Setting.key == "upload_preset").first()
+    cloud = row.value if row else ""
+    preset = row2.value if row2 else ""
+    if not cloud or not preset:
+        return
+    import edge_tts, uuid as _u
+    communicate = edge_tts.Communicate(text[:400], "en-NG-EzinneNeural")
+    chunks = []
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            chunks.append(chunk["data"])
+    mp3 = b"".join(chunks)
+    if not mp3:
+        return
+    boundary = _u.uuid4().hex
+    body = b""
+    body += ("--" + boundary + "\r\n").encode()
+    body += b'Content-Disposition: form-data; name="file"; filename="bot-reply.mp3"\r\n'
+    body += b"Content-Type: audio/mpeg\r\n\r\n"
+    body += mp3
+    body += ("\r\n--" + boundary + "\r\n").encode()
+    body += ('Content-Disposition: form-data; name="upload_preset"\r\n\r\n' + preset + "\r\n").encode()
+    body += ("--" + boundary + "--\r\n").encode()
+    req = urllib.request.Request("https://api.cloudinary.com/v1_1/" + cloud + "/auto/upload", data=body, method="POST")
+    req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        url = json.loads(resp.read().decode("utf-8")).get("secure_url", "")
+    if url:
+        payload = json.dumps({"messaging_product": "whatsapp", "to": to_number, "type": "audio", "audio": {"link": url}}).encode()
+        req3 = urllib.request.Request("https://graph.facebook.com/v25.0/1332619033263966/messages", data=payload, method="POST")
+        req3.add_header("Authorization", "Bearer EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD")
+        req3.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(req3, timeout=15) as r3:
+            r3.read()
+
+async def _process_voice_message(db, msg, value):
+    from_number = msg.get("from", "")
+    media_id = (msg.get("voice") or msg.get("audio") or {}).get("id", "")
+    if not media_id:
+        return {"status": "NO_MEDIA"}
+    token = "EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD"
+    req = urllib.request.Request("https://graph.facebook.com/v25.0/" + media_id)
+    req.add_header("Authorization", "Bearer " + token)
+    with urllib.request.urlopen(req, timeout=15) as r:
+        meta = json.loads(r.read().decode("utf-8"))
+    file_url = meta.get("url", "")
+    if not file_url:
+        return {"status": "NO_URL"}
+    req2 = urllib.request.Request(file_url)
+    req2.add_header("Authorization", "Bearer " + token)
+    with urllib.request.urlopen(req2, timeout=30) as r2:
+        audio_bytes = r2.read()
+    text = _transcribe(audio_bytes)
+    if not text:
+        _direct_send(from_number, "🎧 Na karbi sakon muryarka amma ban gane shi ba. Rubuta rubutu ko sake magana.")
+        return {"status": "TRANSCRIBE_FAILED"}
+    _direct_send(from_number, "🎧 Na gane sakonka: \"" + text + "\"")
+    fake = {"from": from_number, "type": "text", "text": {"body": text}}
+    result = await _process_text_message(db, fake, value)
+    try:
+        await _voice_reply(db, from_number, str(result.get("reply", "")))
+    except Exception as ve:
+        print("VOICE REPLY FAILED:", repr(ve))
+    return result
+
 @router.post("/webhook")
 async def receive_webhook(request: Request, db: Session = Depends(get_db)) -> Dict[str, Any]:
     body_bytes = await request.body()
@@ -372,6 +476,11 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)) -> Di
                         await _process_text_message(db, msg, value)
                     except Exception:
                         logger.exception("Failed to process message")
+                elif msg.get("type") in ("voice", "audio"):
+                    try:
+                        await _process_voice_message(db, msg, value)
+                    except Exception:
+                        logger.exception("Failed to process voice message")
     return {"status": "success"}
 
 @router.get("/check-env")
