@@ -318,99 +318,70 @@ def save_settings(req: SettingsReq, request: Request, db: Session = Depends(get_
 from fastapi.responses import HTMLResponse
 
 DASHBOARD_HTML = """<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sodangi Motors - Agent Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Sodangi Motors | Agent Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b1220;--card:#151f38;--accent:#22c55e;--accent2:#0ea5e9;--text:#e5e7eb;--muted:#94a3b8}
-*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Arial,sans-serif}
-body{background:var(--bg);color:var(--text);padding-bottom:60px}
-header{background:linear-gradient(90deg,#059669,#0ea5e9);padding:16px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-header h1{font-size:20px;color:#fff}
-.who{font-size:13px;color:#e0f2fe;margin-right:10px}
-button{cursor:pointer;border:none;border-radius:8px;padding:10px 16px;font-weight:600}
-.btn-primary{background:var(--accent);color:#052e16}
-.btn-ghost{background:transparent;color:#fff;border:1px solid #ffffff66}
-main{max-width:960px;margin:24px auto;padding:0 16px;display:grid;gap:18px}
-.card{background:var(--card);border:1px solid #1e293b;border-radius:14px;padding:20px}
-.card h2{font-size:16px;margin-bottom:12px;color:#7dd3fc}
-label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
-input{width:100%;padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
+:root{--bg:#0B0F19;--surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.06);--border:rgba(255,255,255,0.08);--text:#F8FAFC;--muted:#94A3B8;--primary:#10B981;--primary-glow:rgba(16,185,129,0.2);--accent:#06B6D4;--danger:#EF4444}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:100px;overflow-x:hidden}
+body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 20%,rgba(6,182,212,0.08) 0%,transparent 50%),radial-gradient(circle at 70% 80%,rgba(16,185,129,0.08) 0%,transparent 50%);z-index:-1}
+header{position:sticky;top:0;z-index:50;padding:16px 20px;backdrop-filter:blur(12px);background:rgba(11,15,25,0.8);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:18px;font-weight:800;background:linear-gradient(90deg,#10B981,#06B6D4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.who{font-size:12px;color:var(--muted);font-weight:500}
+main{max-width:600px;margin:20px auto;padding:0 16px;display:grid;gap:20px}
+.card{background:var(--surface);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:24px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+.card h2{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card h2::before{content:'';width:4px;height:20px;background:var(--primary);border-radius:4px}
+label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px}
+input,textarea{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:var(--text);font-size:16px;font-family:inherit;transition:all 0.2s}
+input:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-glow)}
+textarea{min-height:80px;resize:vertical}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:8px;border-bottom:1px solid #1e293b;text-align:left}
-th{color:var(--muted);font-size:12px}
-#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:12px 20px;border-radius:10px;display:none;z-index:99}
-.hidden{display:none}
-.tabs{display:flex;gap:8px;margin-bottom:12px}
-.tab{padding:8px 14px;border-radius:8px;background:#1e293b;color:var(--muted)}
-.tab.active{background:var(--accent2);color:#fff}
+@media(max-width:400px){.row{grid-template-columns:1fr}}
+.btn{width:100%;padding:16px;border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.2s;margin-top:20px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,#10B981,#059669);color:white;box-shadow:0 4px 12px rgba(16,185,129,0.3)}
+.btn-primary:active{transform:scale(0.98)}
+.btn-ghost{background:var(--surface-hover);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:rgba(239,68,68,0.1);color:#FCA5A5;border:1px solid rgba(239,68,68,0.2)}
+.file-drop{border:2px dashed var(--border);border-radius:16px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(0,0,0,0.1)}
+.file-drop:active{border-color:var(--primary);background:var(--primary-glow)}
+.file-drop input{display:none}
+.file-drop p{color:var(--muted);font-size:14px;margin-top:8px}
+.file-drop .icon{font-size:32px;margin-bottom:8px}
+nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:400px;background:rgba(15,23,42,0.9);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:24px;padding:8px;display:flex;justify-content:space-around;z-index:100;box-shadow:0 10px 40px rgba(0,0,0,0.5)}
+nav button{flex:1;background:none;border:none;color:var(--muted);padding:10px 0;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:16px;transition:all 0.2s}
+nav button.on{background:var(--primary-glow);color:var(--primary)}
+nav button span{font-size:20px}
+.car{background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:20px;padding:16px;margin-top:16px}
+.car h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px}
+.car .price{color:var(--primary);font-weight:800;font-size:18px;margin-bottom:12px}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.gal div{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden}
+.gal img{width:100%;height:100%;object-fit:cover}
+.gal button{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.9);color:white;border:none;font-size:14px;display:flex;align-items:center;justify-content:center}
+.pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+.pill.on{background:rgba(16,185,129,0.15);color:#34D399}
+.pill.off{background:rgba(239,68,68,0.15);color:#F87171}
+#toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.95);backdrop-filter:blur(10px);color:white;padding:14px 24px;border-radius:16px;display:none;z-index:200;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.3);border:1px solid var(--border);max-width:90%;text-align:center}
+.hidden{display:none !important}
+a{color:var(--primary);text-decoration:none;font-weight:600}
 </style>
 </head>
 <body>
-<header>
-  <h1>SODANGI MOTORS - Agent Dashboard <span style="font-size:11px;opacity:.8">ENGINE v3</span></h1>
-  <div><span class="who" id="who"></span><button class="btn-ghost hidden" id="logoutBtn" onclick="logout()">Logout</button></div>
-</header>
+<header><h1>SODANGI MOTORS</h1><div class="who" id="who"></div></header>
 <main>
-  <section class="card hidden" id="cfgBanner" style="border-color:#dc2626">
-    <h2 style="color:#f87171">Media storage not configured</h2>
-    <div style="font-size:13px;color:#fbbf24">Pictures and videos CANNOT upload until the free Cloudinary pipe is connected (2 minutes, one time, forever). Click below to open the Media Storage card.</div>
-    <br><button class="btn-primary" style="background:#dc2626;color:#fff" onclick="document.getElementById('setCard').scrollIntoView();document.getElementById('cCloud').focus();">Open Media Storage Setup</button>
-  </section>
-
-  <section class="card" id="authCard">
-    <div class="tabs">
-      <button class="tab active" id="tabLogin" onclick="showTab('login')">Login</button>
-      <button class="tab" id="tabReg" onclick="showTab('reg')">Create Agent Account</button>
-    </div>
-    <div id="loginForm">
-      <label>Email</label><input id="liEmail" type="email" placeholder="agent@sodangi.com">
-      <label>Password</label><input id="liPass" type="password">
-      <br><br><button class="btn-primary" onclick="doLogin()">Login</button>
-    </div>
-    <div id="regForm" class="hidden">
-      <label>Full Name</label><input id="rgName" placeholder="Musa Abdullahi">
-      <label>Email</label><input id="rgEmail" type="email">
-      <label>Password</label><input id="rgPass" type="password">
-      <br><br><button class="btn-primary" onclick="doRegister()">Create Account</button>
-    </div>
-  </section>
-  <section class="card hidden" id="dashCard">
-    <h2>Upload Product</h2>
-    <div class="row">
-      <div><label>Product Name</label><input id="pName" placeholder="Toyota Corolla 2020"></div>
-      <div><label>Price (Naira)</label><input id="pPrice" type="number" placeholder="7500000"></div>
-    </div>
-    <div class="row">
-      <div><label>Product Photos (select many from gallery)</label><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()"><input id="pImg" type="hidden"><div id="mediaPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div><button class="btn-ghost" style="margin-top:8px;border:1px solid #334155;color:#7dd3fc" onclick="testEngine()">Test Media Engine</button><div style="margin-top:10px"><label>Product Video (optional - sent only when customer asks for bidiyo)</label><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()"><input id="pVid" type="hidden"><div id="videoPreview" style="margin-top:8px;color:#7dd3fc;font-size:13px;"></div></div></div>
-      <div><label>Stock</label><input id="pStock" type="number" value="5"></div>
-    </div>
-    <label>Description</label><input id="pDesc" placeholder="Short sales description">
-    <br><br><button class="btn-primary" onclick="uploadProduct()">Upload Product</button>
-  </section>
-  <section class="card hidden" id="listCard">
-    <h2>Live Inventory (what the WhatsApp bot sells)</h2>
-    <table><thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Media</th></tr></thead><tbody id="prodBody"></tbody></table>
-  </section>
-  <section class="card hidden" id="waCard">
-    <h2>Register Company WhatsApp Number (Owner only)</h2>
-    <label>Phone Number ID</label><input id="waPid" placeholder="1332619033263966">
-    <label>Access Token (EAA...)</label><input id="waTok">
-    <label>Display Name</label><input id="waName" placeholder="Sodangi Motors">
-    <br><br><button class="btn-primary" onclick="connectWA()">Save WhatsApp Config</button>
-  </section>
-
-  <section class="card hidden" id="setCard">
-    <h2>Media Storage (Cloudinary - required for video & big files)</h2>
-    <label>Cloudinary Cloud Name</label><input id="cCloud" placeholder="e.g. dx123abc4">
-    <label>Unsigned Upload Preset</label><input id="cPreset" placeholder="e.g. sodangi">
-    <br><br><button class="btn-primary" onclick="saveSettings()">Save Media Settings</button>
-    <div style="margin-top:10px;font-size:12px;color:#fbbf24">REQUIRED for pictures and videos: cloudinary.com > Sign up free with Google > copy the Cloud Name shown on dashboard > gear Settings > Upload > Upload presets > Add upload preset > name: sodangi > Signing mode: UNSIGNED > Save > paste both values above > Save Media Settings > then click Test Media Engine.</div>
-  </section>
+  <section class="card" id="authCard"><h2>Agent Portal</h2><label>Email</label><input id="liEmail" type="email" placeholder="agent@sodangi.com"><label>Password</label><input id="liPass" type="password" placeholder="••••••••"><button class="btn btn-primary" onclick="doLogin()">Sign In</button></section>
+  <section class="card hidden" id="tabUpload"><h2>Add to Showroom</h2><label>Vehicle Name</label><input id="pName" placeholder="e.g. Toyota Camry 2022"><div class="row"><div><label>Price (₦)</label><input id="pPrice" type="number" placeholder="15,000,000"></div><div><label>Stock</label><input id="pStock" type="number" value="1"></div></div><label>Photos</label><div class="file-drop" onclick="document.getElementById('pFile').click()"><div class="icon">📸</div><p>Tap to select photos</p><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()"></div><div id="mediaPreview" style="margin-top:12px;color:var(--primary);font-size:13px;font-weight:600"></div><label>Video (Optional)</label><div class="file-drop" onclick="document.getElementById('pVideo').click()"><div class="icon">🎥</div><p>Tap to select video</p><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()"></div><div id="videoPreview" style="margin-top:12px;color:var(--accent);font-size:13px;font-weight:600"></div><label>Description</label><textarea id="pDesc" placeholder="Highlight key features..."></textarea><button class="btn btn-primary" onclick="uploadProduct()">Publish Vehicle</button><input id="pImg" type="hidden"><input id="pVid" type="hidden"></section>
+  <section class="card hidden" id="tabCars"><h2>My Showroom</h2><div id="carsList"></div></section>
+  <section class="card hidden" id="tabAgents"><h2>Manage Agents</h2><label>Full Name</label><input id="aName"><label>Email</label><input id="aEmail" type="email"><label>Temp Password</label><input id="aPass" type="password"><label>WhatsApp</label><input id="aPhone" type="tel" placeholder="080..."><label>Bio</label><textarea id="aBio"></textarea><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('aPhoto').click()"><div class="icon">👤</div><p>Upload Photo</p><input type="file" id="aPhoto" accept="image/*" onchange="uploadAgentPhoto()"></div><div id="aPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="aPhotoUrl" type="hidden"><button class="btn btn-primary" onclick="createAgent()">Create Agent</button><h2 style="margin-top:24px">Active Agents</h2><div id="agentsList"></div></section>
+  <section class="card hidden" id="tabProfile"><h2>My Profile</h2><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('mPhoto').click()"><div class="icon">📷</div><p>Update Photo</p><input type="file" id="mPhoto" accept="image/*" onchange="uploadMyPhoto()"></div><div id="mPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="mPhotoUrl" type="hidden"><label>WhatsApp</label><input id="mPhone" type="tel"><label>Bio</label><textarea id="mBio"></textarea><button class="btn btn-primary" onclick="saveProfile()">Save Profile</button><div id="myPage" style="margin-top:16px;padding:16px;background:rgba(0,0,0,0.2);border-radius:16px;font-size:13px"></div><button class="btn btn-danger" onclick="logout()">Sign Out</button></section>
+  <section class="card hidden" id="tabMedia"><h2>Media Engine</h2><label>Cloudinary Cloud Name</label><input id="cCloud"><label>Upload Preset</label><input id="cPreset"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></section>
 </main>
+<nav id="bottomNav" class="hidden"><button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button><button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button><button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button><button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button><button id="navMedia" onclick="go('Media')" class="hidden"><span>⚙️</span>API</button></nav>
 <div id="toast"></div>
 <script>
 var API="/api/v1/dashboard";
@@ -652,146 +623,29 @@ def debug_storage(db: Session = Depends(get_db)):
 def agent_ad(agent_id: int, db: Session = Depends(get_db)):
     import urllib.parse as _up
     a = db.query(Agent).filter(Agent.id == agent_id).first()
-    if not a or not getattr(a, 'is_active', True):
-        return HTMLResponse("<h2 style='color:#fff;background:#0b1220;padding:40px;text-align:center'>Showroom unavailable</h2>")
+    if not a or not getattr(a, "is_active", True):
+        return HTMLResponse("<h2 style='color:#fff;background:#0A0F1C;padding:40px;text-align:center;font-family:sans-serif'>Showroom unavailable</h2>")
     maps = db.query(ProductAgent).filter(ProductAgent.agent_id == a.id).all()
     pids = [m.product_id for m in maps]
     prods = db.query(Product).filter(Product.id.in_(pids), Product.is_active.is_(True)).all() if pids else []
+    if not prods:
+        prods = db.query(Product).filter(Product.business_id == 3, Product.is_active.is_(True)).all()
     cards = ""
     hero = ""
     for i, p in enumerate(prods[:6]):
         imgs = _extract_imgs_list(p.images)
         u = imgs[0] if imgs else ""
         if i == 0 and u: hero = u
-        if u: cards += "<div style='background:#151f38;border-radius:12px;overflow:hidden'><img src='" + u + "' style='width:100%;height:140px;object-fit:cover'><div style='padding:8px'><div style='color:#7dd3fc;font-size:13px;font-weight:700'>" + str(p.name) + "</div><div style='color:#22c55e;font-weight:800'>&#8358;" + format(float(p.price or 0), ",.0f") + "</div></div></div>"
-    if not hero and a.photo_url: hero = str(a.photo_url)
-    wt = "Sannu! I saw the showroom ad of Agent " + str(a.full_name) + " (AD:" + str(a.id) + "). Show me their cars!"
+        if u: 
+            cards += f"""<div class="car-card"><img src="{u}" alt="{p.name}"><div class="car-info"><h3>{p.name}</h3><div class="car-price">₦{float(p.price or 0):,.0f}</div></div></div>"""
+    if not hero and getattr(a, "photo_url", None): hero = str(a.photo_url)
+    if not hero: hero = "https://images.unsplash.com/photo-1492144534655-ae79c464b2d7?auto=format&fit=crop&w=1920&q=80"
+    wt = f"Sannu! I saw the showroom ad of Agent {a.full_name} (AD:{a.id}). Show me their cars!"
     wl = "https://wa.me/2349079437745?text=" + _up.quote(wt)
-    nj = json.dumps(str(a.full_name)); hj = json.dumps(hero); tj = json.dumps(wt)
-    css = "*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI,Arial}body{background:#0b1220;color:#e5e7eb;padding-bottom:90px}.w{max-width:640px;margin:auto;padding:0 12px}.b{display:inline-block;background:#14532d;color:#86efac;font-size:11px;font-weight:800;padding:4px 10px;border-radius:99px;margin:10px 0 6px}.c{background:#151f38;border:1px solid #1e293b;border-radius:16px;padding:12px;margin-top:10px}.g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.cta{position:fixed;bottom:0;left:0;right:0;padding:10px;background:#0f172a}.cta a{display:block;text-align:center;background:#22c55e;color:#052e16;font-weight:900;font-size:17px;padding:15px;border-radius:14px;text-decoration:none}.r{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.r button{flex:1;min-width:90px;border:0;border-radius:10px;padding:12px 6px;font-size:12px;font-weight:700;background:#1e293b;color:#e5e7eb}#t{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 16px;border-radius:10px;display:none;font-size:13px}"
-    js = "var N=" + nj + ",H=" + hj + ",T=" + tj + ";function toast(m){var t=document.getElementById('t');t.textContent=m;t.style.display='block';setTimeout(function(){t.style.display='none'},3000)}function shareIt(){if(navigator.share){navigator.share({title:N,text:T,url:location.href}).catch(function(){})}else{copyIt()}}function fbIt(){window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href))}function waIt(){window.open('https://wa.me/?text='+encodeURIComponent(T+' '+location.href))}function copyIt(){if(navigator.clipboard){navigator.clipboard.writeText(location.href).then(function(){toast('Ad link copied!')})}else{prompt('Copy:',location.href)}}function poster(){var c=document.createElement('canvas');c.width=1080;c.height=1350;var x=c.getContext('2d');var g=x.createLinearGradient(0,0,0,1350);g.addColorStop(0,'#065f46');g.addColorStop(1,'#0369a1');x.fillStyle=g;x.fillRect(0,0,1080,1350);x.fillStyle='#fff';x.font='bold 60px Arial';x.fillText('SODANGI MOTORS',60,130);x.font='34px Arial';x.fillStyle='#bbf7d0';x.fillText('VERIFIED AGENT SHOWROOM',60,190);function fin(){x.fillStyle='#fff';x.font='bold 78px Arial';x.fillText(N,60,1210);x.font='38px Arial';x.fillStyle='#e0f2fe';x.fillText('Tap ad link to chat on WhatsApp',60,1280);c.toBlob(function(b){var a2=document.createElement('a');a2.href=URL.createObjectURL(b);a2.download='sodangi-ad.png';a2.click();toast('Poster downloaded!')})}var im=new Image();im.crossOrigin='anonymous';im.onload=function(){x.drawImage(im,60,240,960,880);fin()};im.onerror=fin;if(H){im.src=H}else{fin()}}"
-    html = "<html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" + str(a.full_name) + " | Sodangi Showroom</title><meta property='og:title' content='" + str(a.full_name) + " - Sodangi Motors'><meta property='og:description' content='" + str(a.bio or 'Verified car dealer') + "'><meta property='og:image' content='" + hero + "'><style>" + css + "</style></head><body><img src='" + hero + "' style='width:100%;height:220px;object-fit:cover'><div class='w'><span class='b'>SODANGI MOTORS VERIFIED SHOWROOM AD</span><div class='c' style='display:flex;gap:12px;align-items:center'><img src='" + str(a.photo_url or '') + "' style='width:60px;height:60px;border-radius:50%;object-fit:cover'><div><h1 style='font-size:18px;color:#fff'>" + str(a.full_name) + "</h1><div style='color:#94a3b8;font-size:13px'>" + str(a.phone_number or '') + "</div></div></div><p style='color:#94a3b8;font-size:14px;margin-top:8px'>" + str(a.bio or '') + "</p><div class='g'>" + cards + "</div><div class='r'><button onclick='shareIt()'>Share</button><button onclick='fbIt()'>Facebook</button><button onclick='waIt()'>WhatsApp</button><button onclick='copyIt()'>Copy Link</button><button onclick='poster()'>Poster</button></div></div><div class='cta'><a href='" + wl + "'>Chat on WhatsApp to Buy</a></div><div id='t'></div><script>" + js + "</script></body></html>"
+    css = """*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}body{background:#0A0F1C;color:#F8FAFC;overflow-x:hidden;padding-bottom:120px}.hero{position:relative;width:100%;height:50vh;min-height:350px;overflow:hidden}.hero img{width:100%;height:100%;object-fit:cover;transform:scale(1.05)}.hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 20%,#0A0F1C 100%)}.agent-card{position:relative;max-width:600px;margin:-60px auto 0;padding:0 20px;z-index:10}.agent-inner{background:rgba(20,25,40,0.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:24px;display:flex;gap:20px;align-items:center;box-shadow:0 20px 50px rgba(0,0,0,0.5)}.agent-inner img{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #10B981}.agent-info h1{font-size:22px;font-weight:800;margin-bottom:4px}.agent-info p{color:#94A3B8;font-size:14px}.badge{display:inline-block;background:rgba(16,185,129,0.15);color:#34D399;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}.content{max-width:600px;margin:40px auto;padding:0 20px}.section-title{font-size:20px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}.section-title::before{content:'';width:4px;height:24px;background:#10B981;border-radius:4px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.car-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:20px;overflow:hidden;transition:all 0.3s}.car-card:active{transform:scale(0.98)}.car-card img{width:100%;height:180px;object-fit:cover}.car-info{padding:16px}.car-info h3{font-size:16px;font-weight:700;margin-bottom:8px}.car-price{font-size:20px;font-weight:800;color:#10B981}.share-row{display:flex;gap:10px;margin-top:30px;flex-wrap:wrap}.share-row button{flex:1;min-width:120px;padding:14px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:#F8FAFC;border-radius:14px;font-weight:600;font-size:14px;cursor:pointer}.share-row button:active{background:rgba(255,255,255,0.08)}.cta{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 40px);max-width:560px;z-index:100}.cta a{display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#25D366,#128C7E);color:white;font-weight:800;font-size:18px;padding:20px;border-radius:20px;text-decoration:none;box-shadow:0 10px 30px rgba(37,211,102,0.4);animation:pulse 2s infinite}@keyframes pulse{0%{box-shadow:0 10px 30px rgba(37,211,102,0.4)}50%{box-shadow:0 10px 40px rgba(37,211,102,0.7)}100%{box-shadow:0 10px 30px rgba(37,211,102,0.4)}}#t{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.95);color:white;padding:14px 24px;border-radius:16px;display:none;z-index:200;font-weight:600;border:1px solid rgba(255,255,255,0.1)}@media(max-width:480px){.grid{grid-template-columns:1fr}}"""
+    js = "var N='" + str(a.full_name).replace("'", "\\'") + "',T='" + wt.replace("'", "\\'") + "';function toast(m){var t=document.getElementById('t');t.textContent=m;t.style.display='block';setTimeout(function(){t.style.display='none'},3000)}function shareIt(){if(navigator.share){navigator.share({title:N,text:T,url:location.href}).catch(function(){})}else{copyIt()}}function fbIt(){window.open('https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(location.href))}function waIt(){window.open('https://wa.me/?text='+encodeURIComponent(T+' '+location.href))}function copyIt(){if(navigator.clipboard){navigator.clipboard.writeText(location.href).then(function(){toast('Ad link copied!')})}else{prompt('Copy:',location.href)}}"
+    photo_url = str(getattr(a, "photo_url", "") or "")
+    phone = str(getattr(a, "phone_number", "") or "")
+    bio = str(getattr(a, "bio", "") or "")
+    html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>{a.full_name} | Sodangi Motors</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><meta property="og:title" content="{a.full_name} - Sodangi Motors Showroom"><meta property="og:description" content="{bio or 'Verified car dealer'}"><meta property="og:image" content="{hero}"><style>{css}</style></head><body><div class="hero"><img src="{hero}" alt="Hero"><div class="hero-overlay"></div></div><div class="agent-card"><div class="agent-inner"><img src="{photo_url or 'https://ui-avatars.com/api/?name='+_up.quote(str(a.full_name))+'&background=10B981&color=fff&size=200'}" alt="{a.full_name}"><div class="agent-info"><span class="badge">Verified Agent</span><h1>{a.full_name}</h1><p>{phone}</p></div></div></div><div class="content"><p style="color:#94A3B8;font-size:15px;line-height:1.6;margin-bottom:30px">{bio}</p><h2 class="section-title">Available Vehicles</h2><div class="grid">{cards if cards else '<p style="color:#94A3B8">No vehicles currently listed.</p>'}</div><div class="share-row"><button onclick="shareIt()">📤 Share</button><button onclick="fbIt()">Facebook</button><button onclick="copyIt()">Copy Link</button></div></div><div class="cta"><a href="{wl}">💬 Chat on WhatsApp to Buy</a></div><div id="t"></div><script>{js}</script></body></html>"""
     return HTMLResponse(html)
-
-
-class AgentCreateReq(BaseModel):
-    full_name: str
-    email: str
-    password: str
-    phone: str = ""
-    bio: str = ""
-    photo_url: str = ""
-
-class ToggleReq(BaseModel):
-    email: str
-    active: bool
-
-class ProfileReq(BaseModel):
-    bio: str = ""
-    photo_url: str = ""
-    phone: str = ""
-
-def _owner(me):
-    if me.get("r") != "owner":
-        raise HTTPException(status_code=403, detail="Owner only")
-
-@router.get("/agents")
-def agents_list(request: Request, db: Session = Depends(get_db)):
-    _owner(_auth(request))
-    out = []
-    for a in db.query(Agent).all():
-        out.append({"id": a.id, "full_name": a.full_name, "email": a.email, "phone": a.phone_number or "", "active": bool(a.is_active), "page": "/api/v1/dashboard/agent/" + str(a.id)})
-    return out
-
-@router.post("/agents/create")
-def agents_create(req: AgentCreateReq, request: Request, db: Session = Depends(get_db)):
-    _owner(_auth(request))
-    if db.query(Agent).filter(Agent.email == req.email).first():
-        raise HTTPException(status_code=400, detail="Email already exists")
-    a = Agent(full_name=req.full_name, email=req.email, password_hash=_hash_pw(req.password), role="agent", phone_number=req.phone, bio=req.bio, photo_url=req.photo_url, is_active=True)
-    db.add(a); db.commit(); db.refresh(a)
-    return {"message": "Agent profile created", "agent_id": a.id, "page": "/api/v1/dashboard/agent/" + str(a.id)}
-
-@router.post("/agents/toggle")
-def agents_toggle(req: ToggleReq, request: Request, db: Session = Depends(get_db)):
-    _owner(_auth(request))
-    a = db.query(Agent).filter(Agent.email == req.email).first()
-    if not a:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    a.is_active = req.active
-    db.commit()
-    return {"message": ("Agent ACTIVATED" if req.active else "Agent DEACTIVATED"), "email": req.email}
-
-@router.post("/products/mine")
-def products_mine(request: Request, db: Session = Depends(get_db)):
-    me = _auth(request)
-    ag = db.query(Agent).filter(Agent.email == me["e"]).first()
-    if me.get("r") == "owner":
-        prods = db.query(Product).filter(Product.business_id == SODANGI_BUSINESS_ID).all()
-    else:
-        if not ag:
-            return []
-        maps = db.query(ProductAgent).filter(ProductAgent.agent_id == ag.id).all()
-        pids = [m.product_id for m in maps]
-        prods = db.query(Product).filter(Product.id.in_(pids)).all() if pids else []
-    out = []
-    for p in prods:
-        imgs = _extract_imgs_list(p.images)
-        out.append({"id": p.id, "name": p.name, "price": p.price, "media": len(imgs), "first_image": imgs[0] if imgs else "", "images": imgs})
-    return out
-
-class DeleteReq(BaseModel):
-    product_id: int
-
-@router.post("/products/delete")
-def products_delete(req: DeleteReq, request: Request, db: Session = Depends(get_db)):
-    me = _auth(request)
-    if me.get("r") != "owner":
-        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
-        if not ag or not db.query(ProductAgent).filter(ProductAgent.product_id == req.product_id, ProductAgent.agent_id == ag.id).first():
-            raise HTTPException(status_code=403, detail="Not your car")
-    p = db.query(Product).filter(Product.id == req.product_id).first()
-    if p:
-        db.delete(p)
-    for m in db.query(ProductAgent).filter(ProductAgent.product_id == req.product_id).all():
-        db.delete(m)
-    db.commit()
-    return {"message": "Product deleted"}
-
-class PhotosReq(BaseModel):
-    product_id: int
-    image_urls: list
-
-@router.post("/products/photos")
-def products_photos(req: PhotosReq, request: Request, db: Session = Depends(get_db)):
-    me = _auth(request)
-    if me.get("r") != "owner":
-        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
-        if not ag or not db.query(ProductAgent).filter(ProductAgent.product_id == req.product_id, ProductAgent.agent_id == ag.id).first():
-            raise HTTPException(status_code=403, detail="Not your car")
-    p = db.query(Product).filter(Product.id == req.product_id).first()
-    if not p:
-        raise HTTPException(status_code=404, detail="Product not found")
-    p.images = json.dumps([str(x) for x in req.image_urls])
-    db.commit()
-    return {"message": "Photos updated", "count": len(req.image_urls)}
-
-@router.post("/profile/update")
-def profile_update(req: ProfileReq, request: Request, db: Session = Depends(get_db)):
-    me = _auth(request)
-    a = db.query(Agent).filter(Agent.email == me["e"]).first()
-    if not a:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    if req.bio: a.bio = req.bio
-    if req.photo_url: a.photo_url = req.photo_url
-    if req.phone: a.phone_number = req.phone
-    db.commit()
-    return {"message": "Profile updated", "page": "/api/v1/dashboard/agent/" + str(a.id)}
-
-@router.get("/profile/me")
-def profile_me(request: Request, db: Session = Depends(get_db)):
-    me = _auth(request)
-    a = db.query(Agent).filter(Agent.email == me["e"]).first()
-    if not a:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return {"full_name": a.full_name, "email": a.email, "phone": a.phone_number or "", "bio": a.bio or "", "photo_url": a.photo_url or "", "page": "/api/v1/dashboard/agent/" + str(a.id)}
