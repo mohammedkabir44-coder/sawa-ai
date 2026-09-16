@@ -11,6 +11,54 @@ from app.models.product import Product
 import uuid
 import urllib.request
 
+
+def _bulletproof_heal():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text, inspect
+        insp = inspect(engine)
+        with engine.begin() as c:
+            if not insp.has_table('sodangi_agents'):
+                c.execute(_sa_text("CREATE TABLE sodangi_agents (id SERIAL PRIMARY KEY, full_name VARCHAR, email VARCHAR UNIQUE, password_hash VARCHAR, role VARCHAR DEFAULT 'agent', phone_number VARCHAR, bio TEXT, photo_url TEXT, is_active BOOLEAN DEFAULT TRUE)"))
+            else:
+                cols = [col['name'] for col in insp.get_columns('sodangi_agents')]
+                for col, typ in [("phone_number", "VARCHAR"), ("bio", "TEXT"), ("photo_url", "TEXT"), ("is_active", "BOOLEAN DEFAULT TRUE")]:
+                    if col not in cols:
+                        c.execute(_sa_text(f"ALTER TABLE sodangi_agents ADD COLUMN {col} {typ}"))
+            if not insp.has_table('sodangi_product_agents'):
+                c.execute(_sa_text("CREATE TABLE sodangi_product_agents (id SERIAL PRIMARY KEY, product_id INTEGER, agent_id INTEGER)"))
+        print("BULLETPROOF SCHEMA HEAL SUCCESS")
+    except Exception as e:
+        print("BULLETPROOF HEAL FAILED:", repr(e))
+
+_bulletproof_heal()
+
+@router.get("/force-heal")
+def force_heal():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text as _sa_text, inspect
+        insp = inspect(engine)
+        results = []
+        with engine.begin() as c:
+            if not insp.has_table('sodangi_agents'):
+                c.execute(_sa_text("CREATE TABLE sodangi_agents (id SERIAL PRIMARY KEY, full_name VARCHAR, email VARCHAR UNIQUE, password_hash VARCHAR, role VARCHAR DEFAULT 'agent', phone_number VARCHAR, bio TEXT, photo_url TEXT, is_active BOOLEAN DEFAULT TRUE)"))
+                results.append("Created sodangi_agents")
+            else:
+                cols = [col['name'] for col in insp.get_columns('sodangi_agents')]
+                results.append("Existing cols: " + str(cols))
+                for col, typ in [("phone_number", "VARCHAR"), ("bio", "TEXT"), ("photo_url", "TEXT"), ("is_active", "BOOLEAN DEFAULT TRUE")]:
+                    if col not in cols:
+                        c.execute(_sa_text(f"ALTER TABLE sodangi_agents ADD COLUMN {col} {typ}"))
+                        results.append(f"Added {col}")
+            if not insp.has_table('sodangi_product_agents'):
+                c.execute(_sa_text("CREATE TABLE sodangi_product_agents (id SERIAL PRIMARY KEY, product_id INTEGER, agent_id INTEGER)"))
+                results.append("Created sodangi_product_agents")
+        return {"status": "SUCCESS", "results": results}
+    except Exception as e:
+        import traceback
+        return {"status": "FAILED", "error": str(e), "trace": traceback.format_exc()}
+
 router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
 SECRET = "sodangi-sawa-secret-2026-do-not-share"
 
