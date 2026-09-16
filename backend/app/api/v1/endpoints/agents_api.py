@@ -325,7 +325,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <title>Sodangi Motors | Agent Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0B0F19;--surface:rgba(255,255,255,0.03);--surface-hover:rgba(255,255,255,0.06);--border:rgba(255,255,255,0.08);--text:#F8FAFC;--muted:#94A3B8;--primary:#10B981;--primary-glow:rgba(16,185,129,0.2);--accent:#06B6D4;--danger:#EF4444}
+:root{--bg:#0B0F19;--surface:rgba(30,41,59,0.95);--surface-hover:rgba(51,65,85,0.95);--border:rgba(148,163,184,0.3);--text:#F8FAFC;--muted:#94A3B8;--primary:#10B981;--primary-glow:rgba(16,185,129,0.2);--accent:#06B6D4;--danger:#EF4444}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:100px;overflow-x:hidden}
 body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 20%,rgba(6,182,212,0.08) 0%,transparent 50%),radial-gradient(circle at 70% 80%,rgba(16,185,129,0.08) 0%,transparent 50%);z-index:-1}
@@ -337,7 +337,7 @@ main{max-width:600px;margin:20px auto;padding:0 16px;display:grid;gap:20px}
 .card h2{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .card h2::before{content:'';width:4px;height:20px;background:var(--primary);border-radius:4px}
 label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px}
-input,textarea{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:var(--text);font-size:16px;font-family:inherit;transition:all 0.2s}
+input,textarea{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:#0F172A;border:1px solid #334155;color:var(--text);font-size:16px;font-family:inherit;transition:all 0.2s}
 input:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-glow)}
 textarea{min-height:80px;resize:vertical}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -356,7 +356,7 @@ nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(10
 nav button{flex:1;background:none;border:none;color:var(--muted);padding:10px 0;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:16px;transition:all 0.2s}
 nav button.on{background:var(--primary-glow);color:var(--primary)}
 nav button span{font-size:20px}
-.car{background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:20px;padding:16px;margin-top:16px}
+.car{background:#0F172A;border:1px solid #334155;border:1px solid var(--border);border-radius:20px;padding:16px;margin-top:16px}
 .car h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px}
 .car .price{color:var(--primary);font-weight:800;font-size:18px;margin-bottom:12px}
 .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
@@ -378,12 +378,13 @@ a{color:var(--primary);text-decoration:none;font-weight:600}
   <section class="card hidden" id="tabUpload"><h2>Add to Showroom</h2><label>Vehicle Name</label><input id="pName" placeholder="e.g. Toyota Camry 2022"><div class="row"><div><label>Price (₦)</label><input id="pPrice" type="number" placeholder="15,000,000"></div><div><label>Stock</label><input id="pStock" type="number" value="1"></div></div><label>Photos</label><div class="file-drop" onclick="document.getElementById('pFile').click()"><div class="icon">📸</div><p>Tap to select photos</p><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()"></div><div id="mediaPreview" style="margin-top:12px;color:var(--primary);font-size:13px;font-weight:600"></div><label>Video (Optional)</label><div class="file-drop" onclick="document.getElementById('pVideo').click()"><div class="icon">🎥</div><p>Tap to select video</p><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()"></div><div id="videoPreview" style="margin-top:12px;color:var(--accent);font-size:13px;font-weight:600"></div><label>Description</label><textarea id="pDesc" placeholder="Highlight key features..."></textarea><button class="btn btn-primary" onclick="uploadProduct()">Publish Vehicle</button><input id="pImg" type="hidden"><input id="pVid" type="hidden"></section>
   <section class="card hidden" id="tabCars"><h2>My Showroom</h2><div id="carsList"></div></section>
   <section class="card hidden" id="tabAgents"><h2>Manage Agents</h2><label>Full Name</label><input id="aName"><label>Email</label><input id="aEmail" type="email"><label>Temp Password</label><input id="aPass" type="password"><label>WhatsApp</label><input id="aPhone" type="tel" placeholder="080..."><label>Bio</label><textarea id="aBio"></textarea><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('aPhoto').click()"><div class="icon">👤</div><p>Upload Photo</p><input type="file" id="aPhoto" accept="image/*" onchange="uploadAgentPhoto()"></div><div id="aPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="aPhotoUrl" type="hidden"><button class="btn btn-primary" onclick="createAgent()">Create Agent</button><h2 style="margin-top:24px">Active Agents</h2><div id="agentsList"></div></section>
-  <section class="card hidden" id="tabProfile"><h2>My Profile</h2><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('mPhoto').click()"><div class="icon">📷</div><p>Update Photo</p><input type="file" id="mPhoto" accept="image/*" onchange="uploadMyPhoto()"></div><div id="mPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="mPhotoUrl" type="hidden"><label>WhatsApp</label><input id="mPhone" type="tel"><label>Bio</label><textarea id="mBio"></textarea><button class="btn btn-primary" onclick="saveProfile()">Save Profile</button><div id="myPage" style="margin-top:16px;padding:16px;background:rgba(0,0,0,0.2);border-radius:16px;font-size:13px"></div><button class="btn btn-danger" onclick="logout()">Sign Out</button></section>
+  <section class="card hidden" id="tabProfile"><h2>My Profile</h2><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('mPhoto').click()"><div class="icon">📷</div><p>Update Photo</p><input type="file" id="mPhoto" accept="image/*" onchange="uploadMyPhoto()"></div><div id="mPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="mPhotoUrl" type="hidden"><label>WhatsApp</label><input id="mPhone" type="tel"><label>Bio</label><textarea id="mBio"></textarea><button class="btn btn-primary" onclick="saveProfile()">Save Profile</button><div id="myPage" style="margin-top:16px;padding:16px;background:#0F172A;border:1px solid #334155;border-radius:16px;font-size:13px"></div><button class="btn btn-danger" onclick="logout()">Sign Out</button></section>
   <section class="card hidden" id="tabMedia"><h2>Media Engine</h2><label>Cloudinary Cloud Name</label><input id="cCloud"><label>Upload Preset</label><input id="cPreset"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></section>
 </main>
 <nav id="bottomNav" class="hidden"><button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button><button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button><button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button><button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button><button id="navMedia" onclick="go('Media')" class="hidden"><span>⚙️</span>API</button></nav>
 <div id="toast"></div>
 <script>
+localStorage.removeItem('sodangi_token');localStorage.removeItem('sodangi_role');localStorage.removeItem('sodangi_name');
 var API="/api/v1/dashboard";
 var TOKEN=localStorage.getItem("sodangi_token")||"";
 var ROLE=localStorage.getItem("sodangi_role")||"";
