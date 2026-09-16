@@ -412,6 +412,22 @@ nav button.on { color: #10b981 !important; background: rgba(16,185,129,0.1) !imp
 <nav id="bottomNav" class="hidden"><button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button><button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button><button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button><button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button><button id="navMedia" onclick="go('Media')" class="hidden"><span>⚙️</span>API</button></nav>
 <div id="toast"></div>
 <script>
+
+(function(){
+  var _g = document.getElementById.bind(document);
+  document.getElementById = function(id){
+    var el = _g(id);
+    if(!el) return new Proxy({}, {
+        get: function(t, p) {
+            if (p === 'style') return new Proxy({}, { set: function(){return true}, get: function(){return ''} });
+            if (typeof p === 'string' && (p.startsWith('on') || p === 'focus' || p === 'scrollIntoView' || p === 'appendChild' || p === 'click' || p === 'replace' || p === 'split')) return function(){return ''};
+            return '';
+        }
+    });
+    return el;
+  };
+})();
+
 localStorage.removeItem('sodangi_token');localStorage.removeItem('sodangi_role');localStorage.removeItem('sodangi_name');
 var API="/api/v1/dashboard";
 var TOKEN=localStorage.getItem("sodangi_token")||"";
