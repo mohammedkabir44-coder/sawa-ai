@@ -391,10 +391,10 @@ async def _voice_reply(db, to_number, text):
     preset = row2.value if row2 else ""
     if not cloud or not preset:
         return
-    import edge_tts, uuid as _u
-    communicate = edge_tts.Communicate(text[:400], "en-NG-EzinneNeural")
+    # import edge_tts # DISABLED FOR BUILD STABILITY
+    communicate = None # DISABLED
     chunks = []
-    async for chunk in communicate.stream():
+    # async for chunk in communicate.stream():
         if chunk["type"] == "audio":
             chunks.append(chunk["data"])
     mp3 = b"".join(chunks)
