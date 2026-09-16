@@ -1,34 +1,17 @@
-"""Aggregate all v1 API routers."""
+"""Aggregate all v1 API routers with crash isolation."""
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import (
-    analytics,
-    auth,
-    automations,
-    businesses,
-    campaigns,
-    customers,
-    leads,
-    products,
-    services,
-    sms,
-    whatsapp,
-    whatsapp_commerce,
-)
-
 api_router = APIRouter()
-api_router.include_router(auth.router)
-api_router.include_router(businesses.router)
-api_router.include_router(customers.router)
-api_router.include_router(leads.router)
-api_router.include_router(products.router)
-api_router.include_router(services.router)
-api_router.include_router(analytics.router)
-api_router.include_router(whatsapp_commerce.router)
-api_router.include_router(whatsapp.router)
-api_router.include_router(sms.router)
-api_router.include_router(campaigns.router)
-api_router.include_router(automations.router)
 
-from app.api.v1.endpoints import agents_api as _sodangi_agents
-api_router.include_router(_sodangi_agents.router)
+def _try_include(module_name):
+    try:
+        mod = __import__("app.api.v1.endpoints." + module_name, fromlist=["router"])
+        api_router.include_router(mod.router)
+        print("LOADED ROUTER: " + module_name)
+    except Exception as e:
+        print("SKIPPED BROKEN ROUTER: " + module_name + " -> " + repr(e)[:200])
+
+for _m in ["auth", "businesses", "customers", "leads", "products", "services",
+           "analytics", "whatsapp_commerce", "whatsapp", "sms", "campaigns",
+           "automations", "agents_api"]:
+    _try_include(_m)
