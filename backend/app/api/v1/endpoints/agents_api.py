@@ -799,3 +799,24 @@ def crash_dump():
         out.append("CRASH: " + str(e))
         out.append(traceback.format_exc())
         return "\n".join(out)
+
+@router.post("/agents/create")
+async def agents_create(request: Request, db: Session = Depends(get_db)):
+    _owner(_auth(request))
+    payload = await request.json()
+    if db.query(Agent).filter(Agent.email == payload.get("email")).first():
+        raise HTTPException(status_code=400, detail="Email already exists")
+    a = Agent(
+        full_name=payload.get("full_name"), 
+        email=payload.get("email"), 
+        password_hash=_hash_pw(payload.get("password") or "sodangi123"), 
+        role="agent", 
+        phone_number=payload.get("phone") or "", 
+        bio="",
+        photo_url="",
+        is_active=True
+    )
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    return {"status": "created", "id": a.id}
