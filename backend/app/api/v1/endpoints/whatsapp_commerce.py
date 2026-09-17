@@ -23,6 +23,60 @@ from app.services.ai.language import detect_language
 from app.services.ai.parser import parse_customer_intent
 
 router = APIRouter(prefix="/whatsapp-commerce", tags=["whatsapp-commerce"])
+
+import datetime
+
+def _track_session(db, customer_phone, agent_id):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sodangi_customer_sessions (
+                    customer_phone VARCHAR PRIMARY KEY,
+                    agent_id INTEGER,
+                    last_active VARCHAR
+                )
+            """))
+            conn.execute(text("""
+                INSERT INTO sodangi_customer_sessions (customer_phone, agent_id, last_active)
+                VALUES (:phone, :aid, :time)
+                ON CONFLICT(customer_phone) DO UPDATE SET agent_id = :aid, last_active = :time
+            """), {"phone": customer_phone, "aid": agent_id, "time": str(datetime.utcnow())})
+    except Exception as e:
+        print("SESSION TRACK ERROR:", e)
+
+def _get_session_agent(db, customer_phone):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT agent_id FROM sodangi_customer_sessions WHERE customer_phone = :phone"), {"phone": customer_phone}).fetchone()
+            return res[0] if res else None
+    except:
+        return None
+
+def _get_agent_phone(db, agent_id):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT phone_number FROM sodangi_agents WHERE id = :aid"), {"aid": agent_id}).fetchone()
+            return res[0] if res and res[0] else ""
+    except:
+        return ""
+
+def _get_agent_name(db, agent_id):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT full_name FROM sodangi_agents WHERE id = :aid"), {"aid": agent_id}).fetchone()
+            return res[0] if res and res[0] else "our agent"
+    except:
+        return "our agent"
+
+
 logger = logging.getLogger(__name__)
 
 class ParseMessageRequest(BaseModel):
@@ -246,13 +300,19 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
     business_id = 3
     catalog = _get_product_catalog(db, business_id)
     m_ad = re.search(r"ad:(\d+)", text_body.lower())
+    active_agent_id = None
     if m_ad:
+        active_agent_id = int(m_ad.group(1))
+        _track_session(db, from_number, active_agent_id)
+    else:
+        active_agent_id = _get_session_agent(db, from_number)
+
+    if active_agent_id:
         try:
             from app.api.v1.endpoints import agents_api as _agad
-            aid = int(m_ad.group(1))
-            agx = db.query(_agad.Agent).filter(_agad.Agent.id == aid, _agad.Agent.is_active.is_(True)).first()
+            agx = db.query(_agad.Agent).filter(_agad.Agent.id == active_agent_id, _agad.Agent.is_active.is_(True)).first()
             if agx:
-                pids_ad = set(mm.product_id for mm in db.query(_agad.ProductAgent).filter(_agad.ProductAgent.agent_id == aid).all())
+                pids_ad = set(mm.product_id for mm in db.query(_agad.ProductAgent).filter(_agad.ProductAgent.agent_id == active_agent_id).all())
                 if pids_ad:
                     filtered = [pc for pc in catalog if pc["id"] in pids_ad]
                     if filtered:
@@ -260,6 +320,16 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
         except Exception as ad_exc:
             print("AD FILTER ERROR:", repr(ad_exc))
     reply = _fast_intent(text_body, catalog)
+    # CTA INJECTION FOR INTENT
+    low_text = text_body.lower()
+    strong_buy = any(k in low_text for k in ["buy", "purchase", "pay", "account", "bank", "ready", "take", "deal", "call", "office", "come", "saya", "saye", "biya", "kudi", "banki", "lama", "tamba", "ni son saya", "zan dauka", "yaya zan biya"])
+    if strong_buy and active_agent_id:
+        agent_phone = _get_agent_phone(db, active_agent_id)
+        agent_name = _get_agent_name(db, active_agent_id)
+        if agent_phone:
+            cta = f"\n\n📞 *Ready to buy?* Contact your dedicated agent {agent_name} directly at: *{agent_phone}*"
+            reply += cta
+
     photos = []
     videos = []
     sent_images = 0
@@ -311,7 +381,17 @@ async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[st
                     _direct_send(from_number, reply)
         else:
             _direct_send(from_number, reply)
-        first_url = videos[0] if sent_video else (photos[0] if sent_images else "")
+            if (sent_images or sent_video) and active_agent_id:
+                agent_phone = _get_agent_phone(db, active_agent_id)
+                agent_name = _get_agent_name(db, active_agent_id)
+                if agent_phone:
+                    cta = f"📞 *Ready to buy or need more info?* Contact your dedicated agent {agent_name} directly at: *{agent_phone}*"
+                    try:
+                        _direct_send(from_number, cta)
+                    except Exception:
+                        pass
+
+        first_url = videos[0]
         return {"status": "SENT", "reply": reply, "extracted_url": first_url, "images_sent": sent_images, "video_sent": sent_video, "video_url": (videos[0] if videos else "")}
     except Exception as exc:
         meta_body = ""
