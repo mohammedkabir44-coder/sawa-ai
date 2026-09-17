@@ -243,6 +243,7 @@ def register(req: RegisterReq, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(req: LoginReq, db: Session = Depends(get_db)):
+    _ensure_agent_cols(db)
     Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
     a = db.query(Agent).filter(Agent.email == req.email).first()
     if not a or not _verify_pw(req.password, a.password_hash):
@@ -370,27 +371,29 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <div class="card">
       <h2>Agent Portal</h2>
       <label>Email</label><input id="liEmail" type="email" placeholder="agent@sodangi.com">
-      <label>Password</label><input id="liPass" type="password" placeholder="••••••••">
+      <label>Password</label><input id="liPass" type="password" placeholder="********">
       <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
     </div>
   </section>
   <section id="tabUpload" class="card hidden">
-    <h2>➕ Add to Showroom</h2>
+    <h2>+ Add to Showroom</h2>
     <label>Vehicle Name</label><input id="pName" placeholder="Toyota Camry 2022">
-    <label>Price (₦)</label><input id="pPrice" type="number" placeholder="8500000">
+    <label>Price (Naira)</label><input id="pPrice" type="number" placeholder="8500000">
     <label>Photos (Select multiple)</label><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()">
+    <input type="hidden" id="pImg" value="[]">
     <div id="mediaPreview" style="font-size:13px;color:#7DD3FC;margin-top:6px"></div>
     <label>Video (Optional)</label><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()">
+    <input type="hidden" id="pVid">
     <div id="videoPreview" style="font-size:13px;color:#7DD3FC;margin-top:6px"></div>
     <label>Description</label><textarea id="pDesc" rows="3" placeholder="Clean interior, low mileage..."></textarea>
     <button class="btn btn-primary" onclick="uploadProduct()">Publish Vehicle</button>
   </section>
   <section id="tabCars" class="card hidden">
-    <h2>🚗 My Inventory</h2>
+    <h2>My Inventory</h2>
     <div id="carsList"></div>
   </section>
   <section id="tabAgents" class="card hidden">
-    <h2>👥 Sales Team</h2>
+    <h2>Sales Team</h2>
     <label>New Agent Name</label><input id="aName" placeholder="Musa Abdullahi">
     <label>Email</label><input id="aEmail" type="email">
     <label>Phone</label><input id="aPhone" placeholder="080...">
@@ -400,26 +403,26 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <div id="agentsList"></div>
   </section>
   <section id="tabStats" class="card hidden">
-    <h2>📊 Analytics</h2>
+    <h2>Analytics</h2>
     <canvas id="statsChart" height="200"></canvas>
     <div id="statsBox" style="margin-top:16px"></div>
   </section>
   <section id="tabProfile" class="card hidden">
-    <h2>👤 My Profile</h2>
+    <h2>My Profile</h2>
     <label>Phone</label><input id="mPhone">
     <label>Bio</label><textarea id="mBio" rows="3"></textarea>
     <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
     <div id="myPage" style="margin-top:16px;font-size:14px;color:#7DD3FC"></div>
-    <button class="btn btn-ghost" onclick="installApp()" style="margin-top:10px">📲 Install App</button>
+    <button class="btn btn-ghost" onclick="installApp()" style="margin-top:10px">Install App</button>
     <button class="btn btn-danger" onclick="logout()" style="margin-top:10px">Sign Out</button>
   </section>
 </div>
 <nav class="nav hidden" id="bottomNav">
-  <button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button>
-  <button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button>
-  <button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button>
-  <button id="navStats" onclick="go('Stats')" class="hidden"><span>📊</span>Stats</button>
-  <button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button>
+  <button id="navUpload" onclick="go('Upload')"><span>+</span>Add</button>
+  <button id="navCars" onclick="go('Cars')"><span>C</span>Cars</button>
+  <button id="navAgents" onclick="go('Agents')" class="hidden"><span>T</span>Team</button>
+  <button id="navStats" onclick="go('Stats')" class="hidden"><span>S</span>Stats</button>
+  <button id="navProfile" onclick="go('Profile')"><span>P</span>Me</button>
 </nav>
 <script>
 var API="/api/v1/dashboard";
@@ -465,9 +468,9 @@ async function uploadOne(f){var chain=[];if(CLOUD.name&&CLOUD.preset)chain.push(
 async function uploadMedia(){var files=document.getElementById("pFile").files;if(!files.length)return;var prev=document.getElementById("mediaPreview");var urls=[];for(var i=0;i<files.length;i++){prev.textContent="Uploading "+(i+1)+" of "+files.length+"...";try{var u=await uploadOne(files[i]);urls.push(u);}catch(e){}}document.getElementById("pImg").value=JSON.stringify(urls);prev.textContent="Uploaded "+urls.length+"/"+files.length+" photos.";}
 async function uploadVideo(){var f=document.getElementById("pVideo").files[0];if(!f)return;var prev=document.getElementById("videoPreview");prev.textContent="Uploading video...";try{var u=await uploadOne(f);document.getElementById("pVid").value=u;prev.textContent="Video ready!";}catch(e){prev.textContent="Failed";}}
 
-async function uploadProduct(){var nameV=document.getElementById("pName").value;var priceV=parseFloat(document.getElementById("pPrice").value);if(!nameV||isNaN(priceV)){toast("Fill name and price","#EF4444");return;}var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){}var vid=document.getElementById("pVid").value;if(vid)urls.push(vid);try{var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:1},true);toast("Published!");document.getElementById("pName").value="";document.getElementById("pPrice").value="";document.getElementById("pDesc").value="";document.getElementById("pFile").value="";document.getElementById("pVideo").value="";document.getElementById("pImg").value="";document.getElementById("pVid").value="";document.getElementById("mediaPreview").textContent="";document.getElementById("videoPreview").textContent="";go("Cars");}catch(e){toast(e.message,"#EF4444");}}
+async function uploadProduct(){var nameV=document.getElementById("pName").value;var priceV=parseFloat(document.getElementById("pPrice").value);if(!nameV||isNaN(priceV)){toast("Fill name and price","#EF4444");return;}var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){}var vid=document.getElementById("pVid").value;if(vid)urls.push(vid);try{var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:1},true);toast("Published!");document.getElementById("pName").value="";document.getElementById("pPrice").value="";document.getElementById("pDesc").value="";document.getElementById("pFile").value="";document.getElementById("pVideo").value="";document.getElementById("pImg").value="[]";document.getElementById("pVid").value="";document.getElementById("mediaPreview").textContent="";document.getElementById("videoPreview").textContent="";go("Cars");}catch(e){toast(e.message,"#EF4444");}}
 
-async function loadCars(){try{var CARS=await api("/products/mine","POST",{},true);var box=document.getElementById("carsList");box.innerHTML="";if(!CARS.length){box.innerHTML="<p style='color:#94A3B8;text-align:center;padding:20px'>No vehicles yet.</p>";return;}CARS.forEach(function(c){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+c.name+'</h3><p>₦'+Number(c.price).toLocaleString()+'</p></div><button class="btn btn-danger" style="width:auto;padding:8px 12px;margin:0" data-act="delcar" data-pid="'+c.id+'">Delete</button>';box.appendChild(d);});}catch(e){}}
+async function loadCars(){try{var CARS=await api("/products/mine","POST",{},true);var box=document.getElementById("carsList");box.innerHTML="";if(!CARS.length){box.innerHTML="<p style='color:#94A3B8;text-align:center;padding:20px'>No vehicles yet.</p>";return;}CARS.forEach(function(c){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+c.name+'</h3><p>Naira '+Number(c.price).toLocaleString()+'</p></div><button class="btn btn-danger" style="width:auto;padding:8px 12px;margin:0" data-act="delcar" data-pid="'+c.id+'">Delete</button>';box.appendChild(d);});}catch(e){}}
 async function loadAgents(){try{var as=await api("/agents","GET",null,true);var box=document.getElementById("agentsList");box.innerHTML="";as.forEach(function(a){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+a.full_name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p>'+a.email+'</p></div><button class="btn btn-ghost" style="width:auto;padding:8px 12px;margin:0" data-act="toggle" data-email="'+a.email+'" data-on="'+(a.active?0:1)+'">'+(a.active?"Deactivate":"Activate")+'</button>';box.appendChild(d);});}catch(e){}}
 async function createAgent(){try{var r=await api("/agents/create","POST",{full_name:document.getElementById("aName").value,email:document.getElementById("aEmail").value,password:document.getElementById("aPass").value,phone:document.getElementById("aPhone").value},true);toast("Agent created!");loadAgents();}catch(e){toast(e.message,"#EF4444");}}
 async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;document.getElementById("myPage").innerHTML='Your Ad Page: <a href="'+location.origin+'/api/v1/dashboard/ad/'+me.page.split('/').pop()+'" target="_blank" style="color:#22C55E">Open Link</a>';}catch(e){}}
@@ -484,228 +487,6 @@ if(TOKEN){enterDash();}
 </script>
 </body>
 </html>"""
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Sodangi Motors | Agent Portal</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#0B0F19;--surface:rgba(30,41,59,0.95);--surface-hover:rgba(51,65,85,0.95);--border:rgba(148,163,184,0.3);--text:#F8FAFC;--muted:#94A3B8;--primary:#10B981;--primary-glow:rgba(16,185,129,0.2);--accent:#06B6D4;--danger:#EF4444}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:100px;overflow-x:hidden}
-body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 20%,rgba(6,182,212,0.08) 0%,transparent 50%),radial-gradient(circle at 70% 80%,rgba(16,185,129,0.08) 0%,transparent 50%);z-index:-1}
-header{position:sticky;top:0;z-index:50;padding:16px 20px;backdrop-filter:blur(12px);background:rgba(11,15,25,0.8);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-header h1{font-size:18px;font-weight:800;background:linear-gradient(90deg,#10B981,#06B6D4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.who{font-size:12px;color:var(--muted);font-weight:500}
-main{max-width:600px;margin:20px auto;padding:0 16px;display:grid;gap:20px}
-.card{background:var(--surface);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:24px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
-.card h2{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.card h2::before{content:'';width:4px;height:20px;background:var(--primary);border-radius:4px}
-label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px}
-input,textarea{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:#0F172A;border:1px solid #334155;color:var(--text);font-size:16px;font-family:inherit;transition:all 0.2s}
-input:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-glow)}
-textarea{min-height:80px;resize:vertical}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:400px){.row{grid-template-columns:1fr}}
-.btn{width:100%;padding:16px;border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.2s;margin-top:20px;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-primary{background:linear-gradient(135deg,#10B981,#059669);color:white;box-shadow:0 4px 12px rgba(16,185,129,0.3)}
-.btn-primary:active{transform:scale(0.98)}
-.btn-ghost{background:var(--surface-hover);color:var(--text);border:1px solid var(--border)}
-.btn-danger{background:rgba(239,68,68,0.1);color:#FCA5A5;border:1px solid rgba(239,68,68,0.2)}
-.file-drop{border:2px dashed var(--border);border-radius:16px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s;background:rgba(0,0,0,0.1)}
-.file-drop:active{border-color:var(--primary);background:var(--primary-glow)}
-.file-drop input{display:none}
-.file-drop p{color:var(--muted);font-size:14px;margin-top:8px}
-.file-drop .icon{font-size:32px;margin-bottom:8px}
-nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 32px);max-width:400px;background:rgba(15,23,42,0.9);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:24px;padding:8px;display:flex;justify-content:space-around;z-index:100;box-shadow:0 10px 40px rgba(0,0,0,0.5)}
-nav button{flex:1;background:none;border:none;color:var(--muted);padding:10px 0;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:16px;transition:all 0.2s}
-nav button.on{background:var(--primary-glow);color:var(--primary)}
-nav button span{font-size:20px}
-.car{background:#0F172A;border:1px solid #334155;border:1px solid var(--border);border-radius:20px;padding:16px;margin-top:16px}
-.car h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px}
-.car .price{color:var(--primary);font-weight:800;font-size:18px;margin-bottom:12px}
-.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-.gal div{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden}
-.gal img{width:100%;height:100%;object-fit:cover}
-.gal button{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.9);color:white;border:none;font-size:14px;display:flex;align-items:center;justify-content:center}
-.pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
-.pill.on{background:rgba(16,185,129,0.15);color:#34D399}
-.pill.off{background:rgba(239,68,68,0.15);color:#F87171}
-#toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.95);backdrop-filter:blur(10px);color:white;padding:14px 24px;border-radius:16px;display:none;z-index:200;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,0.3);border:1px solid var(--border);max-width:90%;text-align:center}
-.hidden{display:none !important}
-a{color:var(--primary);text-decoration:none;font-weight:600}
-</style>
-
-<style>
-/* NUCLEAR OVERRIDE: FORCE VISIBILITY */
-body { background: #0f172a !important; color: #f8fafc !important; }
-.card, section, .agent-inner, .car-card { 
-    background: #1e293b !important; 
-    border: 1px solid #334155 !important; 
-    color: #f8fafc !important; 
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
-}
-h1, h2, h3, label, p, span, div { color: #f8fafc !important; }
-input, textarea, select { 
-    background: #020617 !important; 
-    color: #f8fafc !important; 
-    border: 1px solid #475569 !important; 
-}
-.btn, button { 
-    background: #10b981 !important; 
-    color: #ffffff !important; 
-    border: none !important;
-}
-.btn-danger { background: #ef4444 !important; }
-.btn-ghost { background: #334155 !important; }
-nav { background: #1e293b !important; border-top: 1px solid #334155 !important; }
-nav button { color: #94a3b8 !important; }
-nav button.on { color: #10b981 !important; background: rgba(16,185,129,0.1) !important; }
-</style>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="manifest" href="/api/v1/dashboard/manifest.webmanifest">
-<meta name="theme-color" content="#0B0F19">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Sodangi">
-<link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=SM&background=10B981&color=ffffff&size=180&format=png">
-</head>
-<body>
-<header><h1>SODANGI MOTORS</h1><div class="who" id="who"></div></header>
-<main>
-  <section class="card" id="authCard"><h2>Agent Portal</h2><label>Email</label><input id="liEmail" type="email" placeholder="agent@sodangi.com"><label>Password</label><input id="liPass" type="password" placeholder="••••••••"><button class="btn btn-primary" onclick="doLogin()">Sign In</button></section>
-  <section class="card hidden" id="tabUpload"><h2>Add to Showroom</h2><label>Vehicle Name</label><input id="pName" placeholder="e.g. Toyota Camry 2022"><div class="row"><div><label>Price (₦)</label><input id="pPrice" type="number" placeholder="15,000,000"></div><div><label>Stock</label><input id="pStock" type="number" value="1"></div></div><label>Photos</label><div class="file-drop" onclick="document.getElementById('pFile').click()"><div class="icon">📸</div><p>Tap to select photos</p><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()"></div><div id="mediaPreview" style="margin-top:12px;color:var(--primary);font-size:13px;font-weight:600"></div><label>Video (Optional)</label><div class="file-drop" onclick="document.getElementById('pVideo').click()"><div class="icon">🎥</div><p>Tap to select video</p><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()"></div><div id="videoPreview" style="margin-top:12px;color:var(--accent);font-size:13px;font-weight:600"></div><label>Description</label><textarea id="pDesc" placeholder="Highlight key features..."></textarea><button class="btn btn-primary" onclick="uploadProduct()">Publish Vehicle</button><input id="pImg" type="hidden"><input id="pVid" type="hidden"></section>
-  <section class="card hidden" id="tabCars"><h2>My Showroom</h2><div id="carsList"></div></section>
-  <section class="card hidden" id="tabAgents"><h2>Manage Agents</h2><label>Full Name</label><input id="aName"><label>Email</label><input id="aEmail" type="email"><label>Temp Password</label><input id="aPass" type="password"><label>WhatsApp</label><input id="aPhone" type="tel" placeholder="080..."><label>Bio</label><textarea id="aBio"></textarea><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('aPhoto').click()"><div class="icon">👤</div><p>Upload Photo</p><input type="file" id="aPhoto" accept="image/*" onchange="uploadAgentPhoto()"></div><div id="aPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="aPhotoUrl" type="hidden"><button class="btn btn-primary" onclick="createAgent()">Create Agent</button><h2 style="margin-top:24px">Active Agents</h2><div id="agentsList"></div></section>
-  <section class="card hidden" id="tabProfile"><h2>My Profile</h2><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('mPhoto').click()"><div class="icon">📷</div><p>Update Photo</p><input type="file" id="mPhoto" accept="image/*" onchange="uploadMyPhoto()"></div><div id="mPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="mPhotoUrl" type="hidden"><label>WhatsApp</label><input id="mPhone" type="tel"><label>Bio</label><textarea id="mBio"></textarea><button class="btn btn-primary" onclick="saveProfile()">Save Profile</button><div id="myPage" style="margin-top:16px;padding:16px;background:#0F172A;border:1px solid #334155;border-radius:16px;font-size:13px"></div><button class="btn btn-ghost" id="installBtn" onclick="installApp()">📲 Install App (Android & iPhone)</button><button class="btn btn-danger" onclick="logout()">Sign Out</button></section>
-  <section class="card hidden" id="tabStats"><h2>Business Analytics</h2><canvas id="statsChart" height="200"></canvas><div id="statsBox" style="margin-top:20px"></div></section><section class="card hidden" id="tabMedia"><h2>Media Engine</h2><label>Cloudinary Cloud Name</label><input id="cCloud"><label>Upload Preset</label><input id="cPreset"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></section>
-</main>
-<nav id="bottomNav" class="hidden"><button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button><button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button><button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button><button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button><button id="navStats" onclick="go('Stats')" class="hidden"><span>📊</span>Stats</button><button id="navMedia" onclick="go('Media')" class="hidden"><span>⚙️</span>API</button></nav>
-<div id="toast"></div>
-<script>
-
-var API="/api/v1/dashboard";
-var TOKEN=localStorage.getItem("sodangi_token")||"";
-var ROLE=localStorage.getItem("sodangi_role")||"";
-var NAME=localStorage.getItem("sodangi_name")||"";
-var CARS=[];var CLOUD={name:"",preset:""};
-
-function toast(m,c){var t=document.getElementById("toast");if(!t)return;t.textContent=m;t.style.background=c||"#10B981";t.style.display="block";setTimeout(function(){t.style.display="none";},3500);}
-async function api(p,m,b,a){var h={"Content-Type":"application/json"};if(a)h["Authorization"]="Bearer "+TOKEN;var r=await fetch(API+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
-
-function go(tab){
-  ["Upload","Cars","Agents","Profile","Media","Stats"].forEach(function(t){
-    var el=document.getElementById("tab"+t);if(el)el.className="card hidden";
-    var nb=document.getElementById("nav"+t);if(nb)nb.className=nb.className.replace(" on","");
-  });
-  var el=document.getElementById("tab"+tab);if(el)el.className="card";
-  var nb=document.getElementById("nav"+tab);if(nb)nb.className=nb.className+" on";
-  if(tab==="Cars")loadCars();if(tab==="Agents")loadAgents();if(tab==="Profile")loadProfile();
-  if(tab==="Stats")loadStats();
-}
-
-function enterDash(){
-  var ac=document.getElementById("authCard");if(ac)ac.className="card hidden";
-  var bn=document.getElementById("bottomNav");if(bn)bn.className="";
-  var who=document.getElementById("who");if(who)who.textContent=NAME+" ("+ROLE+")";
-  if(ROLE==="owner"){var na=document.getElementById("navAgents");if(na)na.className="";var nm=document.getElementById("navMedia");if(nm)nm.className="";var ns=document.getElementById("navStats");if(ns)ns.className="";}
-  loadSettings();go("Upload");
-}
-
-async function doLogin(){try{var r=await api("/login","POST",{email:document.getElementById("liEmail").value,password:document.getElementById("liPass").value});TOKEN=r.token;ROLE=r.role;NAME=r.full_name;localStorage.setItem("sodangi_token",TOKEN);localStorage.setItem("sodangi_role",ROLE);localStorage.setItem("sodangi_name",NAME);toast("Welcome "+NAME+"!");enterDash();}catch(e){toast(e.message,"#EF4444");}}
-function logout(){localStorage.removeItem("sodangi_token");localStorage.removeItem("sodangi_role");localStorage.removeItem("sodangi_name");location.reload();}
-
-async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";var c1=document.getElementById("cCloud");if(c1)c1.value=CLOUD.name;var c2=document.getElementById("cPreset");if(c2)c2.value=CLOUD.preset;}catch(e){}}
-async function saveSettings(){try{var r=await api("/settings","POST",{cloud_name:document.getElementById("cCloud").value,upload_preset:document.getElementById("cPreset").value},true);CLOUD.name=document.getElementById("cCloud").value;CLOUD.preset=document.getElementById("cPreset").value;toast(r.message);}catch(e){toast(e.message,"#EF4444");}}
-
-async function putCloudinary(f){var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});if(!r.ok)throw new Error("cloudinary "+r.status);var d=await r.json();return d.secure_url;}
-async function putRelay(f){if(f.size>4000000)throw new Error("too big");var fd=new FormData();fd.append("file",f);var r=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd});if(!r.ok)throw new Error("relay "+r.status);var d=await r.json();return d.url;}
-async function uploadOne(f){var chain=[];if(CLOUD.name&&CLOUD.preset)chain.push(putCloudinary);chain.push(putRelay);var lastErr="unknown";for(var a=0;a<chain.length;a++){for(var att=0;att<2;att++){try{return await chain[a](f);}catch(e){lastErr=e.message;}}}throw new Error(f.name+": "+lastErr);}
-
-async function uploadMedia(){var files=document.getElementById("pFile").files;if(!files.length)return;var prev=document.getElementById("mediaPreview");var urls=[];var failed=[];for(var i=0;i<files.length;i++){prev.textContent="Uploading "+(i+1)+" of "+files.length+"...";try{var u=await uploadOne(files[i]);urls.push(u);}catch(e){failed.push(files[i].name);}}document.getElementById("pImg").value=JSON.stringify(urls);prev.textContent="Uploaded "+urls.length+"/"+files.length+" photos.";toast("Photos ready!");}
-async function uploadVideo(){var f=document.getElementById("pVideo").files[0];if(!f)return;var prev=document.getElementById("videoPreview");prev.textContent="Uploading video...";try{var u=await uploadOne(f);document.getElementById("pVid").value=u;prev.textContent="Video ready!";}catch(e){prev.textContent="Failed";toast(e.message,"#EF4444");}}
-
-async function uploadProduct(){var nameV=document.getElementById("pName").value;var priceV=parseFloat(document.getElementById("pPrice").value);if(!nameV||isNaN(priceV)){toast("Fill name and price","#EF4444");return;}var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){urls=[];}var vid=document.getElementById("pVid").value;if(vid)urls.push(vid);try{var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:parseInt(document.getElementById("pStock").value||"1",10)},true);toast("Published!");document.getElementById("pName").value="";document.getElementById("pPrice").value="";document.getElementById("pDesc").value="";document.getElementById("pFile").value="";document.getElementById("pVideo").value="";document.getElementById("pImg").value="";document.getElementById("pVid").value="";document.getElementById("mediaPreview").textContent="";document.getElementById("videoPreview").textContent="";go("Cars");}catch(e){toast(e.message,"#EF4444");}}
-
-async function loadCars(){try{CARS=await api("/products/mine","POST",{},true);renderCars();}catch(e){}}
-function renderCars(){var box=document.getElementById("carsList");box.innerHTML="";if(!CARS.length){box.innerHTML="<p style='color:#94A3B8;text-align:center;padding:20px'>No vehicles yet. Add your first car!</p>";return;}CARS.forEach(function(c){var d=document.createElement("div");d.className="car";var gal="";(c.images||[]).forEach(function(u,i){gal+='<div><img src="'+u+'"><button data-act="delphoto" data-pid="'+c.id+'" data-idx="'+i+'">x</button></div>';});d.innerHTML='<h3>'+c.name+'</h3><div class="price">₦'+Number(c.price).toLocaleString()+'</div><div class="gal">'+gal+'</div><button class="btn btn-danger" data-act="delcar" data-pid="'+c.id+'">Delete Vehicle</button>';box.appendChild(d);});}
-
-async function loadAgents(){try{var as=await api("/agents","GET",null,true);var box=document.getElementById("agentsList");box.innerHTML="";as.forEach(function(a){var d=document.createElement("div");d.className="car";d.innerHTML='<h3>'+a.full_name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p style="color:#94A3B8;font-size:13px;margin:8px 0">'+a.email+' | '+a.phone+'</p><button class="btn btn-ghost" data-act="toggle" data-email="'+a.email+'" data-on="'+(a.active?0:1)+'">'+(a.active?"Deactivate":"Activate")+'</button>';box.appendChild(d);});}catch(e){}}
-async function createAgent(){try{var r=await api("/agents/create","POST",{full_name:document.getElementById("aName").value,email:document.getElementById("aEmail").value,password:document.getElementById("aPass").value,phone:document.getElementById("aPhone").value,bio:document.getElementById("aBio").value,photo_url:document.getElementById("aPhotoUrl").value},true);toast("Agent created!");loadAgents();}catch(e){toast(e.message,"#EF4444");}}
-
-async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;document.getElementById("mPhotoUrl").value=me.photo_url;document.getElementById("myPage").innerHTML='Your Ad Page: <a href="'+location.origin+me.page.replace("/agent/","/ad/")+'" target="_blank">Open</a>';}catch(e){}}
-async function saveProfile(){try{var r=await api("/profile/update","POST",{bio:document.getElementById("mBio").value,photo_url:document.getElementById("mPhotoUrl").value,phone:document.getElementById("mPhone").value},true);toast("Profile saved!");}catch(e){toast(e.message,"#EF4444");}}
-
-document.addEventListener("click",function(ev){var b=ev.target;while(b&&b.tagName!=="BUTTON"){b=b.parentElement;}if(!b)return;var act=b.getAttribute("data-act");if(!act)return;if(act==="delcar"){if(confirm("Delete?"))api("/products/delete","POST",{product_id:parseInt(b.getAttribute("data-pid"))},true).then(function(){toast("Deleted");loadCars()})}if(act==="toggle"){api("/agents/toggle","POST",{email:b.getAttribute("data-email"),active:b.getAttribute("data-on")==="1"},true).then(function(){toast("Toggled");loadAgents()})}});
-
-async function loadStats(){try{var s=await api("/analytics","GET",null,true);if(s.agents && s.agents.length>0 && typeof Chart !== "undefined"){var ctx=document.getElementById("statsChart").getContext("2d");new Chart(ctx,{type:"bar",data:{labels:s.agents.map(a=>a.name),datasets:[{label:"Ad Leads",data:s.agents.map(a=>a.ad_lead),backgroundColor:"#10B981"},{label:"Handoffs",data:s.agents.map(a=>a.handoff),backgroundColor:"#06B6D4"},{label:"Photos",data:s.agents.map(a=>a.photo_burst),backgroundColor:"#F59E0B"}]},options:{responsive:true,scales:{y:{beginAtZero:true,ticks:{color:"#94A3B8"}},x:{ticks:{color:"#94A3B8"}}},plugins:{legend:{labels:{color:"#F8FAFC"}}}}});}var box=document.getElementById("statsBox");var html="<p style='color:#94A3B8;font-size:13px'>Total lead events: "+s.total_events+"</p>";s.agents.forEach(function(a){html+='<div class="car"><h3>'+a.name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p style="color:#94A3B8;font-size:13px;margin:6px 0'>📢 Ad Leads: '+a.ad_lead+' | 🤝 Handoffs: '+a.handoff+' | 📸 Photo Bursts: '+a.photo_burst+' | 🎥 Videos: '+a.video_sent+'</p></div>';});html+='<h3 style="margin-top:16px">Recent Activity</h3>';s.recent.forEach(function(r){html+='<p style="color:#94A3B8;font-size:12px;margin:4px 0">['+r.time+'] '+r.type+' | '+r.customer+' | '+r.product+'</p>';});box.innerHTML=html;}catch(e){toast(e.message,"#EF4444");}}
-
-if(TOKEN){enterDash();}
-
-</script>
-</body>
-</html>"""
-
-
-from fastapi.responses import JSONResponse, Response
-
-@router.get("/manifest.webmanifest")
-def pwa_manifest():
-    return JSONResponse({
-        "name": "Sodangi Motors Agent Portal",
-        "short_name": "Sodangi",
-        "start_url": "/api/v1/dashboard/ui",
-        "scope": "/api/v1/dashboard/",
-        "display": "standalone",
-        "background_color": "#0B0F19",
-        "theme_color": "#0B0F19",
-        "orientation": "portrait",
-        "icons": [
-            {"src": "https://ui-avatars.com/api/?name=SM&background=10B981&color=ffffff&size=192&format=png", "sizes": "192x192", "type": "image/png"},
-            {"src": "https://ui-avatars.com/api/?name=SM&background=10B981&color=ffffff&size=512&format=png", "sizes": "512x512", "type": "image/png"}
-        ]
-    }, headers={"Cache-Control": "no-store"})
-
-SW_JS = """
-const CACHE = 'sodangi-v1';
-self.addEventListener('install', function(e){ self.skipWaiting(); });
-self.addEventListener('activate', function(e){ e.waitUntil(clients.claim()); });
-self.addEventListener('fetch', function(e){
-  var url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.pathname.indexOf('/api/v1/dashboard/') !== 0) return;
-  e.respondWith(
-    fetch(e.request).then(function(resp){
-      var copy = resp.clone();
-      caches.open(CACHE).then(function(c){ c.put(e.request, copy); }).catch(function(){});
-      return resp;
-    }).catch(function(){ return caches.match(e.request); })
-  );
-});
-"""
-
-@router.get("/sw.js")
-def pwa_sw():
-    return Response(content=SW_JS, media_type="application/javascript", headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/api/v1/dashboard/"})
-
-
-@router.get("/owner-auto", response_class=HTMLResponse)
-def owner_auto_login():
-    import base64, hmac, hashlib, json, time
-    payload = base64.urlsafe_b64encode(json.dumps({"e": "owner@sodangi.com", "r": "owner", "t": int(time.time()) + 315360000}).encode()).decode()
-    sig = hmac.new(SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    token = payload + "." + sig
-    force_js = """<script>
-    localStorage.setItem('sodangi_token','""" + token + """');
-    localStorage.setItem('sodangi_role','owner');
-    localStorage.setItem('sodangi_name','Mohammed Kabir');
-    var TOKEN='""" + token + """',ROLE='owner',NAME='Mohammed Kabir';
-    if(typeof enterDash === 'function') { enterDash(); }
-    </script>"""
-    html = DASHBOARD_HTML.replace("</body>", force_js + "</body>")
-    return HTMLResponse(content=html, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
 
 @router.get("/ui", response_class=HTMLResponse)
 def dashboard_ui():
