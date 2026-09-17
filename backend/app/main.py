@@ -133,23 +133,27 @@ async def master_create(request: Request):
 
 
 @app.post("/api/v1/fix-abdull")
-async def fix_abdull(request: Request):
-    from app.core.database import engine
-    from sqlalchemy import text
+async def fix_abdull(request: Request, db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.agents_api import Agent, ProductAgent
+    from app.models.product import Product
+    import traceback
     try:
-        with engine.begin() as conn:
-            conn.execute(text("""CREATE TABLE IF NOT EXISTS sodangi_product_agents (id SERIAL PRIMARY KEY, product_id INTEGER, agent_id INTEGER)"""))
-            res = conn.execute(text("SELECT id FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com'")).fetchone()
-            if not res: return {"status": "NOT_FOUND"}
-            abdull_id = res[0]
-            conn.execute(text("UPDATE sodangi_agents SET role = 'agent' WHERE id = :aid"), {"aid": abdull_id})
-            prods = conn.execute(text("SELECT id FROM products WHERE business_id = 3")).fetchall()
-            count = 0
-            for p in prods:
-                pid = p[0]
-                conn.execute(text("DELETE FROM sodangi_product_agents WHERE product_id = :pid AND agent_id = :aid"), {"pid": pid, "aid": abdull_id})
-                conn.execute(text("INSERT INTO sodangi_product_agents (product_id, agent_id) VALUES (:pid, :aid)"), {"pid": pid, "aid": abdull_id})
+        Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        ProductAgent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        
+        abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
+        if not abdull: return {"status": "NOT_FOUND"}
+        
+        abdull.role = "agent"
+        
+        prods = db.query(Product).filter(Product.business_id == 3, Product.is_active.is_(True)).all()
+        count = 0
+        for p in prods:
+            exists = db.query(ProductAgent).filter(ProductAgent.product_id == p.id, ProductAgent.agent_id == abdull.id).first()
+            if not exists:
+                db.add(ProductAgent(product_id=p.id, agent_id=abdull.id))
                 count += 1
-            return {"status": "FIXED", "abdull_id": abdull_id, "cars_assigned": count}
+        db.commit()
+        return {"status": "FIXED", "abdull_id": abdull.id, "cars_assigned": count}
     except Exception as e:
-        return {"status": "ERROR", "error": str(e)}
+        return {"status": "ERROR", "error": str(e), "trace": traceback.format_exc()}
