@@ -127,13 +127,9 @@ class Agent(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     role = Column(String, default="agent")
-    phone_number = Column(String)
-    bio = Column(Text)
-    photo_url = Column(Text)
-    is_active = Column(Boolean, default=True)
-    phone_number = Column(String)
-    bio = Column(Text)
-    photo_url = Column(Text)
+    phone_number = Column(String, default="")
+    bio = Column(Text, default="")
+    photo_url = Column(Text, default="")
     is_active = Column(Boolean, default=True)
 
 
@@ -248,11 +244,15 @@ def register(req: RegisterReq, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(req: LoginReq, db: Session = Depends(get_db)):
-    Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
-    a = db.query(Agent).filter(Agent.email == req.email).first()
-    if not a or not _verify_pw(req.password, a.password_hash):
-        raise HTTPException(status_code=401, detail="Wrong email or password")
-    return {"token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name}
+    try:
+        Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        a = db.query(Agent).filter(Agent.email == req.email).first()
+        if not a or not _verify_pw(req.password, a.password_hash):
+            raise HTTPException(status_code=401, detail="Wrong email or password")
+        return {"token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name}
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=str(traceback.format_exc()))
 
 @router.get("/products")
 def list_products(db: Session = Depends(get_db)):
@@ -758,7 +758,6 @@ async def products_delete(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/agents/update")
 async def agents_update(request: Request, db: Session = Depends(get_db)):
-    if "_ensure_agent_cols" in globals(): _ensure_agent_cols(db)
     _owner(_auth(request))
     payload = await request.json()
     a = db.query(Agent).filter(Agent.email == payload.get("email")).first()
