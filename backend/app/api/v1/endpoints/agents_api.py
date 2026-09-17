@@ -33,6 +33,28 @@ def _bulletproof_heal():
 
 
 router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
+
+@router.get("/agents")
+async def list_agents(request: Request, db: Session = Depends(get_db)):
+    try:
+        _auth(request)
+        rows = db.query(Agent).all()
+        out = []
+        for a in rows:
+            out.append({
+                "id": a.id, 
+                "full_name": a.full_name, 
+                "email": a.email, 
+                "phone": str(getattr(a, "phone_number", "") or ""), 
+                "bio": str(getattr(a, "bio", "") or ""), 
+                "photo_url": str(getattr(a, "photo_url", "") or ""), 
+                "active": bool(getattr(a, "is_active", True)), 
+                "page": "/agent/" + str(a.id)
+            })
+        return out
+    except Exception as e:
+        return {"error": str(e)}
+
 @router.get("/force-heal")
 def force_heal():
     try:
@@ -695,15 +717,6 @@ def analytics(request: Request, db: Session = Depends(get_db)):
 def ping():
     return {"status": "alive", "message": "Server is awake and responding!"}
 
-
-@router.get("/agents")
-async def list_agents(request: Request, db: Session = Depends(get_db)):
-    _auth(request)
-    rows = db.query(Agent).all()
-    out = []
-    for a in rows:
-        out.append({"id": a.id, "full_name": a.full_name, "email": a.email, "phone": str(getattr(a, "phone_number", "") or ""), "bio": str(getattr(a, "bio", "") or ""), "photo_url": str(getattr(a, "photo_url", "") or ""), "active": bool(getattr(a, "is_active", True)), "page": "/agent/" + str(a.id)})
-    return out
 
 
 @router.post("/agents/toggle")
