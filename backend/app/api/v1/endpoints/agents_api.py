@@ -249,11 +249,10 @@ def login(req: LoginReq, db: Session = Depends(get_db)):
         a = db.query(Agent).filter(Agent.email == req.email).first()
         if not a or not _verify_pw(req.password, a.password_hash):
             return {"status": "wrong_password"}
-        return {"token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name, "status": "success"}
+        return {"status": "success", "token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name}
     except Exception as e:
         import traceback
-        return {"status": "crashed", "traceback": traceback.format_exc()}
-
+        return {"status": "crashed", "error": str(e), "trace": traceback.format_exc()}
 
 @router.get("/products")
 def list_products(db: Session = Depends(get_db)):
@@ -768,3 +767,15 @@ async def agents_update(request: Request, db: Session = Depends(get_db)):
     if payload.get("password"): a.password_hash = _hash_pw(payload.get("password"))
     db.commit()
     return {"status": "updated"}
+
+
+@router.get("/db-test")
+def db_test():
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+            return {"status": "DATABASE_CONNECTED_OK"}
+    except Exception as e:
+        return {"status": "DATABASE_FAILED", "error": str(e)}
