@@ -694,3 +694,77 @@ def analytics(request: Request, db: Session = Depends(get_db)):
 @router.get("/ping")
 def ping():
     return {"status": "alive", "message": "Server is awake and responding!"}
+
+
+@router.get("/agents")
+async def list_agents(request: Request, db: Session = Depends(get_db)):
+    _auth(request)
+    rows = db.query(Agent).all()
+    out = []
+    for a in rows:
+        out.append({"id": a.id, "full_name": a.full_name, "email": a.email, "phone": str(getattr(a, "phone_number", "") or ""), "bio": str(getattr(a, "bio", "") or ""), "photo_url": str(getattr(a, "photo_url", "") or ""), "active": bool(getattr(a, "is_active", True)), "page": "/agent/" + str(a.id)})
+    return out
+
+
+@router.post("/agents/toggle")
+async def agents_toggle(request: Request, db: Session = Depends(get_db)):
+    _owner(_auth(request))
+    payload = await request.json()
+    a = db.query(Agent).filter(Agent.email == payload.get("email")).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    a.is_active = bool(payload.get("active"))
+    db.commit()
+    return {"status": "ok", "active": bool(a.is_active)}
+
+
+@router.get("/profile/me")
+async def profile_me(request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    a = db.query(Agent).filter(Agent.email == me["e"]).first()
+    return {"full_name": a.full_name, "email": a.email, "phone": str(getattr(a, "phone_number", "") or ""), "bio": str(getattr(a, "bio", "") or ""), "photo_url": str(getattr(a, "photo_url", "") or ""), "page": "/agent/" + str(a.id)}
+
+
+@router.post("/profile/update")
+async def profile_update(request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    payload = await request.json()
+    a = db.query(Agent).filter(Agent.email == me["e"]).first()
+    if payload.get("bio") is not None: a.bio = payload.get("bio")
+    if payload.get("photo_url") is not None: a.photo_url = payload.get("photo_url")
+    if payload.get("phone") is not None: a.phone_number = payload.get("phone")
+    db.commit()
+    return {"status": "saved"}
+
+
+@router.post("/products/mine")
+async def products_mine(request: Request, db: Session = Depends(get_db)):
+    me = _auth(request)
+    q = db.query(Product).filter(Product.is_active.is_(True))
+    if me.get("r") != "owner":
+        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
+        if ag:
+            maps = db.query(ProductAgent).filter(ProductAgent.agent_id == ag.id).all()
+            pids = [m.product_id for m in maps]
+            q = q.filter(Product.id.in_(pids)) if pids else q.filter(Product.id == -1)
+        else:
+            q = q.filter(Product.id == -1)
+    out = []
+    for p in q.all():
+        try:
+            imgs = json.loads(p.images or "[]")
+        except Exception:
+            imgs = []
+        out.append({"id": p.id, "name": p.name, "price": float(p.price or 0), "stock": getattr(p, "stock", 0), "description": getattr(p, "description", "") or "", "images": imgs})
+    return out
+
+
+@router.post("/products/delete")
+async def products_delete(request: Request, db: Session = Depends(get_db)):
+    _auth(request)
+    payload = await request.json()
+    p = db.query(Product).filter(Product.id == payload.get("product_id")).first()
+    if p:
+        db.delete(p)
+        db.commit()
+    return {"status": "deleted"}
