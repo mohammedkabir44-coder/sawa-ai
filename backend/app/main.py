@@ -82,3 +82,17 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 def health_check() -> dict:
     """Simple liveness probe."""
     return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+
+
+@app.get("/api/v1/truth")
+def truth_route():
+    import traceback
+    try:
+        from app.core.database import engine, Base
+        from sqlalchemy import text
+        Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "DB_PERFECT", "url": str(engine.url)}
+    except Exception as e:
+        return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
