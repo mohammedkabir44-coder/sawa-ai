@@ -362,23 +362,26 @@ async def send_test():
 
 def _transcribe(audio_bytes):
     try:
-        import uuid as _u
-        boundary = _u.uuid4().hex
-        body = b""
-        body += ("--" + boundary + "\r\n").encode()
-        body += b'Content-Disposition: form-data; name="file"; filename="voice.ogg"\r\n'
-        body += b"Content-Type: audio/ogg\r\n\r\n"
-        body += audio_bytes
-        body += ("\r\n--" + boundary + "\r\n").encode()
-        body += b'Content-Disposition: form-data; name="model"\r\n\r\nwhisper-large-v3-turbo\r\n'
-        body += ("--" + boundary + "--\r\n").encode()
-        req = urllib.request.Request("https://api.groq.com/openai/v1/audio/transcriptions", data=body, method="POST")
-        req.add_header("Authorization", "Bearer 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")
-        req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            return json.loads(resp.read().decode("utf-8")).get("text", "")
+        import httpx
+        files = {
+            "file": ("voice.ogg", audio_bytes, "audio/ogg"),
+            "model": (None, "whisper-large-v3-turbo")
+        }
+        headers = {
+            "Authorization": "Bearer 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"
+        }
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                files=files,
+                headers=headers
+            )
+            if resp.status_code == 200:
+                return resp.json().get("text", "")
+            print(f"WHISPER ERROR {resp.status_code}: {resp.text[:100]}")
+            return ""
     except Exception as e:
-        print("TRANSCRIBE FAILED:", repr(e))
+        print("TRANSCRIBE EXCEPTION:", repr(e))
         return ""
 
 async def _voice_reply(db, to_number, text):
