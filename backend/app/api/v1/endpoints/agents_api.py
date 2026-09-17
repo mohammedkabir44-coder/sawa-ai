@@ -321,6 +321,172 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0B0F19">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Sodangi Motors</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root { --bg: #0B0F19; --card: #151F38; --accent: #22C55E; --text: #F8FAFC; --muted: #94A3B8; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding-bottom: 80px; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #065F46, #0369A1); padding: 20px; text-align: center; }
+  header h1 { font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+  .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+  .card { background: var(--card); border: 1px solid #1E293B; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+  .card h2 { font-size: 18px; margin-bottom: 16px; color: #7DD3FC; display: flex; align-items: center; gap: 8px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; font-weight: 600; }
+  input, textarea, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #0F172A; color: var(--text); font-size: 15px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; margin-top: 12px; transition: 0.2s; }
+  .btn-primary { background: var(--accent); color: #052E16; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-danger { background: #EF4444; color: #fff; }
+  .btn-ghost { background: #334155; color: var(--text); }
+  .hidden { display: none !important; }
+  .nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0F172A; border-top: 1px solid #1E293B; display: flex; justify-content: space-around; padding: 8px 0; z-index: 100; }
+  .nav button { background: none; border: none; color: var(--muted); font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 12px; cursor: pointer; }
+  .nav button.active { color: var(--accent); background: rgba(34, 197, 94, 0.1); }
+  .nav button span { font-size: 22px; }
+  .item { background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .item-info h3 { font-size: 15px; margin-bottom: 4px; }
+  .item-info p { font-size: 13px; color: var(--muted); }
+  .pill { font-size: 11px; padding: 4px 8px; border-radius: 99px; font-weight: 700; }
+  .pill.on { background: #064E3B; color: #6EE7B7; }
+  .pill.off { background: #7F1D1D; color: #FCA5A5; }
+  #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #16A34A; color: #fff; padding: 12px 24px; border-radius: 10px; font-weight: 600; display: none; z-index: 999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  #authCard { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; }
+  #authCard .card { width: 100%; max-width: 400px; }
+</style>
+</head>
+<body>
+<div id="toast"></div>
+<header id="mainHeader" class="hidden">
+  <h1>SODANGI MOTORS</h1>
+  <div style="font-size:13px;color:#E0F2FE;margin-top:4px" id="who"></div>
+</header>
+<div class="container">
+  <section id="authCard">
+    <div class="card">
+      <h2>Agent Portal</h2>
+      <label>Email</label><input id="liEmail" type="email" placeholder="agent@sodangi.com">
+      <label>Password</label><input id="liPass" type="password" placeholder="••••••••">
+      <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    </div>
+  </section>
+  <section id="tabUpload" class="card hidden">
+    <h2>➕ Add to Showroom</h2>
+    <label>Vehicle Name</label><input id="pName" placeholder="Toyota Camry 2022">
+    <label>Price (₦)</label><input id="pPrice" type="number" placeholder="8500000">
+    <label>Photos (Select multiple)</label><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()">
+    <div id="mediaPreview" style="font-size:13px;color:#7DD3FC;margin-top:6px"></div>
+    <label>Video (Optional)</label><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()">
+    <div id="videoPreview" style="font-size:13px;color:#7DD3FC;margin-top:6px"></div>
+    <label>Description</label><textarea id="pDesc" rows="3" placeholder="Clean interior, low mileage..."></textarea>
+    <button class="btn btn-primary" onclick="uploadProduct()">Publish Vehicle</button>
+  </section>
+  <section id="tabCars" class="card hidden">
+    <h2>🚗 My Inventory</h2>
+    <div id="carsList"></div>
+  </section>
+  <section id="tabAgents" class="card hidden">
+    <h2>👥 Sales Team</h2>
+    <label>New Agent Name</label><input id="aName" placeholder="Musa Abdullahi">
+    <label>Email</label><input id="aEmail" type="email">
+    <label>Phone</label><input id="aPhone" placeholder="080...">
+    <label>Temp Password</label><input id="aPass" type="password">
+    <button class="btn btn-primary" onclick="createAgent()">Hire Agent</button>
+    <hr style="margin:20px 0;border-color:#1E293B">
+    <div id="agentsList"></div>
+  </section>
+  <section id="tabStats" class="card hidden">
+    <h2>📊 Analytics</h2>
+    <canvas id="statsChart" height="200"></canvas>
+    <div id="statsBox" style="margin-top:16px"></div>
+  </section>
+  <section id="tabProfile" class="card hidden">
+    <h2>👤 My Profile</h2>
+    <label>Phone</label><input id="mPhone">
+    <label>Bio</label><textarea id="mBio" rows="3"></textarea>
+    <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
+    <div id="myPage" style="margin-top:16px;font-size:14px;color:#7DD3FC"></div>
+    <button class="btn btn-ghost" onclick="installApp()" style="margin-top:10px">📲 Install App</button>
+    <button class="btn btn-danger" onclick="logout()" style="margin-top:10px">Sign Out</button>
+  </section>
+</div>
+<nav class="nav hidden" id="bottomNav">
+  <button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button>
+  <button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button>
+  <button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button>
+  <button id="navStats" onclick="go('Stats')" class="hidden"><span>📊</span>Stats</button>
+  <button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button>
+</nav>
+<script>
+var API="/api/v1/dashboard";
+var TOKEN=localStorage.getItem("sodangi_token")||"";
+var ROLE=localStorage.getItem("sodangi_role")||"";
+var NAME=localStorage.getItem("sodangi_name")||"";
+var CLOUD={name:"",preset:""};
+
+function toast(m,c){var t=document.getElementById("toast");t.textContent=m;t.style.background=c||"#16A34A";t.style.display="block";setTimeout(function(){t.style.display="none";},3000);}
+async function api(p,m,b,a){var h={"Content-Type":"application/json"};if(a)h["Authorization"]="Bearer "+TOKEN;var r=await fetch(API+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
+
+function go(tab){
+  ["Upload","Cars","Agents","Stats","Profile"].forEach(function(t){
+    var el=document.getElementById("tab"+t);if(el)el.classList.add("hidden");
+    var nb=document.getElementById("nav"+t);if(nb)nb.classList.remove("active");
+  });
+  var el=document.getElementById("tab"+tab);if(el)el.classList.remove("hidden");
+  var nb=document.getElementById("nav"+tab);if(nb)nb.classList.add("active");
+  if(tab==="Cars")loadCars();if(tab==="Agents")loadAgents();if(tab==="Profile")loadProfile();if(tab==="Stats")loadStats();
+}
+
+function enterDash(){
+  document.getElementById("authCard").classList.add("hidden");
+  document.getElementById("mainHeader").classList.remove("hidden");
+  document.getElementById("bottomNav").classList.remove("hidden");
+  document.getElementById("who").textContent=NAME+" ("+ROLE+")";
+  if(ROLE==="owner"){
+    document.getElementById("navAgents").classList.remove("hidden");
+    document.getElementById("navStats").classList.remove("hidden");
+  }
+  loadSettings();
+  go("Upload");
+}
+
+async function doLogin(){try{var r=await api("/login","POST",{email:document.getElementById("liEmail").value,password:document.getElementById("liPass").value});TOKEN=r.token;ROLE=r.role;NAME=r.full_name;localStorage.setItem("sodangi_token",TOKEN);localStorage.setItem("sodangi_role",ROLE);localStorage.setItem("sodangi_name",NAME);toast("Welcome "+NAME+"!");enterDash();}catch(e){toast(e.message,"#EF4444");}}
+function logout(){localStorage.removeItem("sodangi_token");localStorage.removeItem("sodangi_role");localStorage.removeItem("sodangi_name");location.reload();}
+
+async function loadSettings(){try{var s=await api("/settings","GET");CLOUD.name=s.cloud_name||"";CLOUD.preset=s.upload_preset||"";}catch(e){}}
+async function putCloudinary(f){var fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLOUD.preset);var r=await fetch("https://api.cloudinary.com/v1_1/"+CLOUD.name+"/auto/upload",{method:"POST",body:fd});if(!r.ok)throw new Error("cloudinary "+r.status);var d=await r.json();return d.secure_url;}
+async function putRelay(f){if(f.size>4000000)throw new Error("too big");var fd=new FormData();fd.append("file",f);var r=await fetch(API+"/upload-media",{method:"POST",headers:{"Authorization":"Bearer "+TOKEN},body:fd});if(!r.ok)throw new Error("relay "+r.status);var d=await r.json();return d.url;}
+async function uploadOne(f){var chain=[];if(CLOUD.name&&CLOUD.preset)chain.push(putCloudinary);chain.push(putRelay);var lastErr="unknown";for(var a=0;a<chain.length;a++){for(var att=0;att<2;att++){try{return await chain[a](f);}catch(e){lastErr=e.message;}}}throw new Error(f.name+": "+lastErr);}
+
+async function uploadMedia(){var files=document.getElementById("pFile").files;if(!files.length)return;var prev=document.getElementById("mediaPreview");var urls=[];for(var i=0;i<files.length;i++){prev.textContent="Uploading "+(i+1)+" of "+files.length+"...";try{var u=await uploadOne(files[i]);urls.push(u);}catch(e){}}document.getElementById("pImg").value=JSON.stringify(urls);prev.textContent="Uploaded "+urls.length+"/"+files.length+" photos.";}
+async function uploadVideo(){var f=document.getElementById("pVideo").files[0];if(!f)return;var prev=document.getElementById("videoPreview");prev.textContent="Uploading video...";try{var u=await uploadOne(f);document.getElementById("pVid").value=u;prev.textContent="Video ready!";}catch(e){prev.textContent="Failed";}}
+
+async function uploadProduct(){var nameV=document.getElementById("pName").value;var priceV=parseFloat(document.getElementById("pPrice").value);if(!nameV||isNaN(priceV)){toast("Fill name and price","#EF4444");return;}var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){}var vid=document.getElementById("pVid").value;if(vid)urls.push(vid);try{var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:1},true);toast("Published!");document.getElementById("pName").value="";document.getElementById("pPrice").value="";document.getElementById("pDesc").value="";document.getElementById("pFile").value="";document.getElementById("pVideo").value="";document.getElementById("pImg").value="";document.getElementById("pVid").value="";document.getElementById("mediaPreview").textContent="";document.getElementById("videoPreview").textContent="";go("Cars");}catch(e){toast(e.message,"#EF4444");}}
+
+async function loadCars(){try{var CARS=await api("/products/mine","POST",{},true);var box=document.getElementById("carsList");box.innerHTML="";if(!CARS.length){box.innerHTML="<p style='color:#94A3B8;text-align:center;padding:20px'>No vehicles yet.</p>";return;}CARS.forEach(function(c){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+c.name+'</h3><p>₦'+Number(c.price).toLocaleString()+'</p></div><button class="btn btn-danger" style="width:auto;padding:8px 12px;margin:0" data-act="delcar" data-pid="'+c.id+'">Delete</button>';box.appendChild(d);});}catch(e){}}
+async function loadAgents(){try{var as=await api("/agents","GET",null,true);var box=document.getElementById("agentsList");box.innerHTML="";as.forEach(function(a){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+a.full_name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p>'+a.email+'</p></div><button class="btn btn-ghost" style="width:auto;padding:8px 12px;margin:0" data-act="toggle" data-email="'+a.email+'" data-on="'+(a.active?0:1)+'">'+(a.active?"Deactivate":"Activate")+'</button>';box.appendChild(d);});}catch(e){}}
+async function createAgent(){try{var r=await api("/agents/create","POST",{full_name:document.getElementById("aName").value,email:document.getElementById("aEmail").value,password:document.getElementById("aPass").value,phone:document.getElementById("aPhone").value},true);toast("Agent created!");loadAgents();}catch(e){toast(e.message,"#EF4444");}}
+async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;document.getElementById("myPage").innerHTML='Your Ad Page: <a href="'+location.origin+'/api/v1/dashboard/ad/'+me.page.split('/').pop()+'" target="_blank" style="color:#22C55E">Open Link</a>';}catch(e){}}
+async function saveProfile(){try{var r=await api("/profile/update","POST",{bio:document.getElementById("mBio").value,phone:document.getElementById("mPhone").value},true);toast("Profile saved!");}catch(e){toast(e.message,"#EF4444");}}
+async function loadStats(){try{var s=await api("/analytics","GET",null,true);if(s.agents && s.agents.length>0 && typeof Chart !== "undefined"){var ctx=document.getElementById("statsChart").getContext("2d");new Chart(ctx,{type:"bar",data:{labels:s.agents.map(a=>a.name),datasets:[{label:"Ad Leads",data:s.agents.map(a=>a.ad_lead),backgroundColor:"#10B981"},{label:"Handoffs",data:s.agents.map(a=>a.handoff),backgroundColor:"#06B6D4"},{label:"Photos",data:s.agents.map(a=>a.photo_burst),backgroundColor:"#F59E0B"}]},options:{responsive:true,scales:{y:{beginAtZero:true,ticks:{color:"#94A3B8"}},x:{ticks:{color:"#94A3B8"}}},plugins:{legend:{labels:{color:"#F8FAFC"}}}}});}var box=document.getElementById("statsBox");box.innerHTML="<p>Total events: "+s.total_events+"</p>";}catch(e){}}
+
+document.addEventListener("click",function(ev){var b=ev.target.closest("button");if(!b)return;var act=b.getAttribute("data-act");if(!act)return;if(act==="delcar"){if(confirm("Delete?"))api("/products/delete","POST",{product_id:parseInt(b.getAttribute("data-pid"))},true).then(function(){toast("Deleted");loadCars()})}if(act==="toggle"){api("/agents/toggle","POST",{email:b.getAttribute("data-email"),active:b.getAttribute("data-on")==="1"},true).then(function(){toast("Toggled");loadAgents()})}});
+
+var deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; });
+function installApp(){ if(deferredPrompt){ deferredPrompt.prompt(); } else { toast("Use browser menu to Install App"); } }
+
+if(TOKEN){enterDash();}
+</script>
+</body>
+</html>"""
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Sodangi Motors | Agent Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -531,29 +697,14 @@ def owner_auto_login():
     payload = base64.urlsafe_b64encode(json.dumps({"e": "owner@sodangi.com", "r": "owner", "t": int(time.time()) + 315360000}).encode()).decode()
     sig = hmac.new(SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
     token = payload + "." + sig
-    
-    # NUCLEAR CSS: Physically hide the login box, force dashboard to show
-    force_css = "<style>#authCard{display:none!important;}#dashCard,#listCard,#waCard,#setCard{display:block!important;}#bottomNav{display:flex!important;}</style>"
-    
-    # NUCLEAR JS: Inject token and force dashboard open instantly
     force_js = """<script>
     localStorage.setItem('sodangi_token','""" + token + """');
     localStorage.setItem('sodangi_role','owner');
     localStorage.setItem('sodangi_name','Mohammed Kabir');
     var TOKEN='""" + token + """',ROLE='owner',NAME='Mohammed Kabir';
-    document.getElementById('authCard').className='card hidden';
-    document.getElementById('dashCard').className='card';
-    document.getElementById('listCard').className='card';
-    document.getElementById('waCard').className='card';
-    document.getElementById('setCard').className='card';
-    document.getElementById('logoutBtn').className='btn-ghost';
-    document.getElementById('who').textContent='Mohammed Kabir (owner)';
-    if(typeof loadProducts==='function') loadProducts();
-    if(typeof loadSettings==='function') loadSettings();
+    if(typeof enterDash === 'function') { enterDash(); }
     </script>"""
-    
-    html = DASHBOARD_HTML.replace("</head>", force_css + "</head>")
-    html = html.replace("</body>", force_js + "</body>")
+    html = DASHBOARD_HTML.replace("</body>", force_js + "</body>")
     return HTMLResponse(content=html, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
 
 @router.get("/ui", response_class=HTMLResponse)
