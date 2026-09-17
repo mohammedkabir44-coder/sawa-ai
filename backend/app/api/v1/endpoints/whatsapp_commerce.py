@@ -407,20 +407,6 @@ async def _process_voice_message(db, msg, value):
     _direct_send(from_number, "🎧 Na gane sakonka: \"" + text + "\"")
     fake = {"from": from_number, "type": "text", "text": {"body": text}}
     result = await _process_text_message(db, fake, value)
-    try:
-        # await _voice_reply(db, from_number, str(result.get("reply", "")))
-    except Exception as ve:
-        pass
-        pass
-        pass
-        pass
-        pass
-        pass
-        pass
-        pass
-        pass
-        pass
-        print("VOICE REPLY FAILED:", repr(ve))
     return result
 
 @router.post("/webhook")
