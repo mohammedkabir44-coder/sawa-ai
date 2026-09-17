@@ -96,3 +96,37 @@ def truth_route():
         return {"status": "DB_PERFECT", "url": str(engine.url)}
     except Exception as e:
         return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
+
+
+@app.post("/api/v1/master-create")
+async def master_create(request: Request):
+    import json, hashlib, os
+    from app.core.database import engine
+    from sqlalchemy import text
+    try:
+        body = await request.json()
+        name = body.get("full_name", "Agent")
+        email = body.get("email", "agent@test.com")
+        pw = body.get("password", "test123")
+        phone = body.get("phone", "")
+        
+        salt = os.urandom(8).hex()
+        pw_hash = salt + ":" + hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 120000).hex()
+        
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sodangi_agents (
+                    id SERIAL PRIMARY KEY, full_name VARCHAR, email VARCHAR UNIQUE, 
+                    password_hash VARCHAR, role VARCHAR DEFAULT 'agent', 
+                    phone_number VARCHAR, bio TEXT, photo_url TEXT, is_active BOOLEAN DEFAULT TRUE
+                )
+            """))
+            conn.execute(text("DELETE FROM sodangi_agents WHERE email = :email"), {"email": email})
+            conn.execute(text("""
+                INSERT INTO sodangi_agents (full_name, email, password_hash, role, phone_number, is_active) 
+                VALUES (:name, :email, :pw, 'agent', :phone, TRUE)
+            """), {"name": name, "email": email, "pw": pw_hash, "phone": phone})
+        return {"status": "FORCE_CREATED", "email": email, "password": pw}
+    except Exception as e:
+        import traceback
+        return {"status": "FAILED", "error": str(e), "trace": traceback.format_exc()}
