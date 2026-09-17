@@ -528,17 +528,33 @@ def pwa_sw():
 @router.get("/owner-auto", response_class=HTMLResponse)
 def owner_auto_login():
     import base64, hmac, hashlib, json, time
-    # Mint a 10-year permanent VIP token for the Owner
     payload = base64.urlsafe_b64encode(json.dumps({"e": "owner@sodangi.com", "r": "owner", "t": int(time.time()) + 315360000}).encode()).decode()
     sig = hmac.new(SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
     token = payload + "." + sig
     
-    html = DASHBOARD_HTML
-    # Inject the token directly into the frontend so it bypasses the login screen
-    html = html.replace('var TOKEN=localStorage.getItem("sodangi_token")||"";', 'var TOKEN="' + token + '"; localStorage.setItem("sodangi_token", TOKEN);')
-    html = html.replace('var ROLE=localStorage.getItem("sodangi_role")||"";', 'var ROLE="owner"; localStorage.setItem("sodangi_role", ROLE);')
-    html = html.replace('var NAME=localStorage.getItem("sodangi_name")||"";', 'var NAME="Mohammed Kabir"; localStorage.setItem("sodangi_name", NAME);')
-    return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
+    # NUCLEAR CSS: Physically hide the login box, force dashboard to show
+    force_css = "<style>#authCard{display:none!important;}#dashCard,#listCard,#waCard,#setCard{display:block!important;}#bottomNav{display:flex!important;}</style>"
+    
+    # NUCLEAR JS: Inject token and force dashboard open instantly
+    force_js = """<script>
+    localStorage.setItem('sodangi_token','""" + token + """');
+    localStorage.setItem('sodangi_role','owner');
+    localStorage.setItem('sodangi_name','Mohammed Kabir');
+    var TOKEN='""" + token + """',ROLE='owner',NAME='Mohammed Kabir';
+    document.getElementById('authCard').className='card hidden';
+    document.getElementById('dashCard').className='card';
+    document.getElementById('listCard').className='card';
+    document.getElementById('waCard').className='card';
+    document.getElementById('setCard').className='card';
+    document.getElementById('logoutBtn').className='btn-ghost';
+    document.getElementById('who').textContent='Mohammed Kabir (owner)';
+    if(typeof loadProducts==='function') loadProducts();
+    if(typeof loadSettings==='function') loadSettings();
+    </script>"""
+    
+    html = DASHBOARD_HTML.replace("</head>", force_css + "</head>")
+    html = html.replace("</body>", force_js + "</body>")
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
 
 @router.get("/ui", response_class=HTMLResponse)
 def dashboard_ui():
