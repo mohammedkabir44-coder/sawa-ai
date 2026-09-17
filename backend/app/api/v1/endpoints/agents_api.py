@@ -248,7 +248,6 @@ def register(req: RegisterReq, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(req: LoginReq, db: Session = Depends(get_db)):
-    _ensure_agent_cols(db)
     Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
     a = db.query(Agent).filter(Agent.email == req.email).first()
     if not a or not _verify_pw(req.password, a.password_hash):
