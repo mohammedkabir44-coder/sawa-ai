@@ -779,3 +779,23 @@ def db_test():
             return {"status": "DATABASE_CONNECTED_OK"}
     except Exception as e:
         return {"status": "DATABASE_FAILED", "error": str(e)}
+
+
+@router.get("/crash-dump")
+def crash_dump():
+    import traceback
+    out = []
+    try:
+        from app.core.database import engine, SessionLocal
+        from sqlalchemy import text
+        out.append("DB ENGINE OK: " + str(engine.url))
+        db = SessionLocal()
+        out.append("SESSION OK")
+        db.execute(text("SELECT 1"))
+        out.append("QUERY OK")
+        db.close()
+        return "\n".join(out)
+    except Exception as e:
+        out.append("CRASH: " + str(e))
+        out.append(traceback.format_exc())
+        return "\n".join(out)
