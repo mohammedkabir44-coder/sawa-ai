@@ -399,6 +399,13 @@ nav button.on { color: #10b981 !important; background: rgba(16,185,129,0.1) !imp
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="manifest" href="/api/v1/dashboard/manifest.webmanifest">
+<meta name="theme-color" content="#0B0F19">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sodangi">
+<link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=SM&background=10B981&color=ffffff&size=180&format=png">
 </head>
 <body>
 <header><h1>SODANGI MOTORS</h1><div class="who" id="who"></div></header>
@@ -407,7 +414,7 @@ nav button.on { color: #10b981 !important; background: rgba(16,185,129,0.1) !imp
   <section class="card hidden" id="tabUpload"><h2>Add to Showroom</h2><label>Vehicle Name</label><input id="pName" placeholder="e.g. Toyota Camry 2022"><div class="row"><div><label>Price (₦)</label><input id="pPrice" type="number" placeholder="15,000,000"></div><div><label>Stock</label><input id="pStock" type="number" value="1"></div></div><label>Photos</label><div class="file-drop" onclick="document.getElementById('pFile').click()"><div class="icon">📸</div><p>Tap to select photos</p><input type="file" id="pFile" accept="image/*" multiple onchange="uploadMedia()"></div><div id="mediaPreview" style="margin-top:12px;color:var(--primary);font-size:13px;font-weight:600"></div><label>Video (Optional)</label><div class="file-drop" onclick="document.getElementById('pVideo').click()"><div class="icon">🎥</div><p>Tap to select video</p><input type="file" id="pVideo" accept="video/*" onchange="uploadVideo()"></div><div id="videoPreview" style="margin-top:12px;color:var(--accent);font-size:13px;font-weight:600"></div><label>Description</label><textarea id="pDesc" placeholder="Highlight key features..."></textarea><button class="btn btn-primary" onclick="uploadProduct()">Publish Vehicle</button><input id="pImg" type="hidden"><input id="pVid" type="hidden"></section>
   <section class="card hidden" id="tabCars"><h2>My Showroom</h2><div id="carsList"></div></section>
   <section class="card hidden" id="tabAgents"><h2>Manage Agents</h2><label>Full Name</label><input id="aName"><label>Email</label><input id="aEmail" type="email"><label>Temp Password</label><input id="aPass" type="password"><label>WhatsApp</label><input id="aPhone" type="tel" placeholder="080..."><label>Bio</label><textarea id="aBio"></textarea><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('aPhoto').click()"><div class="icon">👤</div><p>Upload Photo</p><input type="file" id="aPhoto" accept="image/*" onchange="uploadAgentPhoto()"></div><div id="aPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="aPhotoUrl" type="hidden"><button class="btn btn-primary" onclick="createAgent()">Create Agent</button><h2 style="margin-top:24px">Active Agents</h2><div id="agentsList"></div></section>
-  <section class="card hidden" id="tabProfile"><h2>My Profile</h2><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('mPhoto').click()"><div class="icon">📷</div><p>Update Photo</p><input type="file" id="mPhoto" accept="image/*" onchange="uploadMyPhoto()"></div><div id="mPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="mPhotoUrl" type="hidden"><label>WhatsApp</label><input id="mPhone" type="tel"><label>Bio</label><textarea id="mBio"></textarea><button class="btn btn-primary" onclick="saveProfile()">Save Profile</button><div id="myPage" style="margin-top:16px;padding:16px;background:#0F172A;border:1px solid #334155;border-radius:16px;font-size:13px"></div><button class="btn btn-danger" onclick="logout()">Sign Out</button></section>
+  <section class="card hidden" id="tabProfile"><h2>My Profile</h2><label>Profile Photo</label><div class="file-drop" onclick="document.getElementById('mPhoto').click()"><div class="icon">📷</div><p>Update Photo</p><input type="file" id="mPhoto" accept="image/*" onchange="uploadMyPhoto()"></div><div id="mPhotoPrev" style="font-size:12px;color:var(--primary);margin-top:8px"></div><input id="mPhotoUrl" type="hidden"><label>WhatsApp</label><input id="mPhone" type="tel"><label>Bio</label><textarea id="mBio"></textarea><button class="btn btn-primary" onclick="saveProfile()">Save Profile</button><div id="myPage" style="margin-top:16px;padding:16px;background:#0F172A;border:1px solid #334155;border-radius:16px;font-size:13px"></div><button class="btn btn-ghost" id="installBtn" onclick="installApp()">📲 Install App (Android & iPhone)</button><button class="btn btn-danger" onclick="logout()">Sign Out</button></section>
   <section class="card hidden" id="tabStats"><h2>Business Analytics</h2><canvas id="statsChart" height="200"></canvas><div id="statsBox" style="margin-top:20px"></div></section><section class="card hidden" id="tabMedia"><h2>Media Engine</h2><label>Cloudinary Cloud Name</label><input id="cCloud"><label>Upload Preset</label><input id="cPreset"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></section>
 </main>
 <nav id="bottomNav" class="hidden"><button id="navUpload" onclick="go('Upload')"><span>➕</span>Add</button><button id="navCars" onclick="go('Cars')"><span>🚗</span>Cars</button><button id="navAgents" onclick="go('Agents')" class="hidden"><span>👥</span>Team</button><button id="navProfile" onclick="go('Profile')"><span>👤</span>Me</button><button id="navStats" onclick="go('Stats')" class="hidden"><span>📊</span>Stats</button><button id="navMedia" onclick="go('Media')" class="hidden"><span>⚙️</span>API</button></nav>
@@ -475,6 +482,47 @@ if(TOKEN){enterDash();}
 </script>
 </body>
 </html>"""
+
+
+from fastapi.responses import JSONResponse, Response
+
+@router.get("/manifest.webmanifest")
+def pwa_manifest():
+    return JSONResponse({
+        "name": "Sodangi Motors Agent Portal",
+        "short_name": "Sodangi",
+        "start_url": "/api/v1/dashboard/ui",
+        "scope": "/api/v1/dashboard/",
+        "display": "standalone",
+        "background_color": "#0B0F19",
+        "theme_color": "#0B0F19",
+        "orientation": "portrait",
+        "icons": [
+            {"src": "https://ui-avatars.com/api/?name=SM&background=10B981&color=ffffff&size=192&format=png", "sizes": "192x192", "type": "image/png"},
+            {"src": "https://ui-avatars.com/api/?name=SM&background=10B981&color=ffffff&size=512&format=png", "sizes": "512x512", "type": "image/png"}
+        ]
+    }, headers={"Cache-Control": "no-store"})
+
+SW_JS = """
+const CACHE = 'sodangi-v1';
+self.addEventListener('install', function(e){ self.skipWaiting(); });
+self.addEventListener('activate', function(e){ e.waitUntil(clients.claim()); });
+self.addEventListener('fetch', function(e){
+  var url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.pathname.indexOf('/api/v1/dashboard/') !== 0) return;
+  e.respondWith(
+    fetch(e.request).then(function(resp){
+      var copy = resp.clone();
+      caches.open(CACHE).then(function(c){ c.put(e.request, copy); }).catch(function(){});
+      return resp;
+    }).catch(function(){ return caches.match(e.request); })
+  );
+});
+"""
+
+@router.get("/sw.js")
+def pwa_sw():
+    return Response(content=SW_JS, media_type="application/javascript", headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/api/v1/dashboard/"})
 
 @router.get("/ui", response_class=HTMLResponse)
 def dashboard_ui():
