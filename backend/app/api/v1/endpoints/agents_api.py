@@ -196,6 +196,11 @@ def _make_token(email, role):
     sig = hmac.new(SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return payload + "." + sig
 
+def _owner(me):
+    if me.get("r") != "owner":
+        raise HTTPException(status_code=403, detail="Owner access required")
+    return me
+
 def _auth(request: Request):
     header = request.headers.get("Authorization", "")
     token = header.replace("Bearer ", "") if header else request.query_params.get("token", "")
@@ -471,13 +476,14 @@ async function uploadVideo(){var f=document.getElementById("pVideo").files[0];if
 async function uploadProduct(){var nameV=document.getElementById("pName").value;var priceV=parseFloat(document.getElementById("pPrice").value);if(!nameV||isNaN(priceV)){toast("Fill name and price","#EF4444");return;}var urls=[];try{urls=JSON.parse(document.getElementById("pImg").value||"[]");}catch(e){}var vid=document.getElementById("pVid").value;if(vid)urls.push(vid);try{var r=await api("/products/upload","POST",{name:nameV,price:priceV,image_url:JSON.stringify(urls),description:document.getElementById("pDesc").value,stock:1},true);toast("Published!");document.getElementById("pName").value="";document.getElementById("pPrice").value="";document.getElementById("pDesc").value="";document.getElementById("pFile").value="";document.getElementById("pVideo").value="";document.getElementById("pImg").value="[]";document.getElementById("pVid").value="";document.getElementById("mediaPreview").textContent="";document.getElementById("videoPreview").textContent="";go("Cars");}catch(e){toast(e.message,"#EF4444");}}
 
 async function loadCars(){try{var CARS=await api("/products/mine","POST",{},true);var box=document.getElementById("carsList");box.innerHTML="";if(!CARS.length){box.innerHTML="<p style='color:#94A3B8;text-align:center;padding:20px'>No vehicles yet.</p>";return;}CARS.forEach(function(c){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+c.name+'</h3><p>Naira '+Number(c.price).toLocaleString()+'</p></div><button class="btn btn-danger" style="width:auto;padding:8px 12px;margin:0" data-act="delcar" data-pid="'+c.id+'">Delete</button>';box.appendChild(d);});}catch(e){}}
-async function loadAgents(){try{var as=await api("/agents","GET",null,true);var box=document.getElementById("agentsList");box.innerHTML="";as.forEach(function(a){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+a.full_name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p>'+a.email+'</p></div><button class="btn btn-ghost" style="width:auto;padding:8px 12px;margin:0" data-act="toggle" data-email="'+a.email+'" data-on="'+(a.active?0:1)+'">'+(a.active?"Deactivate":"Activate")+'</button>';box.appendChild(d);});}catch(e){}}
+async function loadAgents(){try{var as=await api("/agents","GET",null,true);var box=document.getElementById("agentsList");box.innerHTML="";as.forEach(function(a){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+a.full_name+' <span class="pill '+(a.active?"on":"off")+'">'+(a.active?"ACTIVE":"OFF")+'</span></h3><p>'+a.email+' | '+(a.phone||'No Phone')+'</p></div><div style="display:flex;gap:6px"><button class="btn btn-ghost" style="width:auto;padding:8px 12px;margin:0;font-size:12px" data-act="edit" data-email="'+a.email+'" data-name="'+a.full_name+'" data-phone="'+(a.phone||'')+'">Edit</button><button class="btn btn-ghost" style="width:auto;padding:8px 12px;margin:0;font-size:12px" data-act="toggle" data-email="'+a.email+'" data-on="'+(a.active?0:1)+'">'+(a.active?"Deactivate":"Activate")+'</button></div>';box.appendChild(d);});}catch(e){}}
 async function createAgent(){try{var r=await api("/agents/create","POST",{full_name:document.getElementById("aName").value,email:document.getElementById("aEmail").value,password:document.getElementById("aPass").value,phone:document.getElementById("aPhone").value},true);toast("Agent created!");loadAgents();}catch(e){toast(e.message,"#EF4444");}}
 async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;document.getElementById("myPage").innerHTML='Your Ad Page: <a href="'+location.origin+'/api/v1/dashboard/ad/'+me.page.split('/').pop()+'" target="_blank" style="color:#22C55E">Open Link</a>';}catch(e){}}
 async function saveProfile(){try{var r=await api("/profile/update","POST",{bio:document.getElementById("mBio").value,phone:document.getElementById("mPhone").value},true);toast("Profile saved!");}catch(e){toast(e.message,"#EF4444");}}
 async function loadStats(){try{var s=await api("/analytics","GET",null,true);if(s.agents && s.agents.length>0 && typeof Chart !== "undefined"){var ctx=document.getElementById("statsChart").getContext("2d");new Chart(ctx,{type:"bar",data:{labels:s.agents.map(a=>a.name),datasets:[{label:"Ad Leads",data:s.agents.map(a=>a.ad_lead),backgroundColor:"#10B981"},{label:"Handoffs",data:s.agents.map(a=>a.handoff),backgroundColor:"#06B6D4"},{label:"Photos",data:s.agents.map(a=>a.photo_burst),backgroundColor:"#F59E0B"}]},options:{responsive:true,scales:{y:{beginAtZero:true,ticks:{color:"#94A3B8"}},x:{ticks:{color:"#94A3B8"}}},plugins:{legend:{labels:{color:"#F8FAFC"}}}}});}var box=document.getElementById("statsBox");box.innerHTML="<p>Total events: "+s.total_events+"</p>";}catch(e){}}
 
-document.addEventListener("click",function(ev){var b=ev.target.closest("button");if(!b)return;var act=b.getAttribute("data-act");if(!act)return;if(act==="delcar"){if(confirm("Delete?"))api("/products/delete","POST",{product_id:parseInt(b.getAttribute("data-pid"))},true).then(function(){toast("Deleted");loadCars()})}if(act==="toggle"){api("/agents/toggle","POST",{email:b.getAttribute("data-email"),active:b.getAttribute("data-on")==="1"},true).then(function(){toast("Toggled");loadAgents()})}});
+document.addEventListener("click",function(ev){var b=ev.target.closest("button");if(!b)return;var act=b.getAttribute("data-act");if(!act)return;if(act==="delcar"){if(confirm("Delete?"))api("/products/delete","POST",{product_id:parseInt(b.getAttribute("data-pid"))},true).then(function(){toast("Deleted");loadCars()})}if(act==="edit"){var n=prompt("New Name:",b.getAttribute("data-name"));if(n===null)return;var p=prompt("New Phone:",b.getAttribute("data-phone"));if(p===null)return;var pw=prompt("New Password (leave blank to keep current):","");api("/agents/update","POST",{email:b.getAttribute("data-email"),full_name:n,phone:p,password:pw},true).then(function(){toast("Agent updated!");loadAgents()}).catch(function(e){toast(e.message,"#EF4444")});}
+if(act==="toggle"){api("/agents/toggle","POST",{email:b.getAttribute("data-email"),active:b.getAttribute("data-on")==="1"},true).then(function(){toast("Toggled");loadAgents()})}});
 
 var deferredPrompt=null;
 window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; });
@@ -749,3 +755,17 @@ async def products_delete(request: Request, db: Session = Depends(get_db)):
         db.delete(p)
         db.commit()
     return {"status": "deleted"}
+
+
+@router.post("/agents/update")
+async def agents_update(request: Request, db: Session = Depends(get_db)):
+    if "_ensure_agent_cols" in globals(): _ensure_agent_cols(db)
+    _owner(_auth(request))
+    payload = await request.json()
+    a = db.query(Agent).filter(Agent.email == payload.get("email")).first()
+    if not a: raise HTTPException(status_code=404, detail="Agent not found")
+    if payload.get("full_name"): a.full_name = payload.get("full_name")
+    if payload.get("phone"): a.phone_number = payload.get("phone")
+    if payload.get("password"): a.password_hash = _hash_pw(payload.get("password"))
+    db.commit()
+    return {"status": "updated"}
