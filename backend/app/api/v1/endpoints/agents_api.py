@@ -33,28 +33,6 @@ def _bulletproof_heal():
 
 
 router = APIRouter(prefix="/dashboard", tags=["Sodangi Agents"])
-
-@router.get("/agents")
-async def list_agents(request: Request, db: Session = Depends(get_db)):
-    try:
-        _auth(request)
-        rows = db.query(Agent).all()
-        out = []
-        for a in rows:
-            out.append({
-                "id": a.id, 
-                "full_name": a.full_name, 
-                "email": a.email, 
-                "phone": str(getattr(a, "phone_number", "") or ""), 
-                "bio": str(getattr(a, "bio", "") or ""), 
-                "photo_url": str(getattr(a, "photo_url", "") or ""), 
-                "active": bool(getattr(a, "is_active", True)), 
-                "page": "/agent/" + str(a.id)
-            })
-        return out
-    except Exception as e:
-        return {"error": str(e)}
-
 @router.get("/force-heal")
 def force_heal():
     try:
@@ -546,6 +524,22 @@ self.addEventListener('fetch', function(e){
 def pwa_sw():
     return Response(content=SW_JS, media_type="application/javascript", headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/api/v1/dashboard/"})
 
+
+@router.get("/owner-auto", response_class=HTMLResponse)
+def owner_auto_login():
+    import base64, hmac, hashlib, json, time
+    # Mint a 10-year permanent VIP token for the Owner
+    payload = base64.urlsafe_b64encode(json.dumps({"e": "owner@sodangi.com", "r": "owner", "t": int(time.time()) + 315360000}).encode()).decode()
+    sig = hmac.new(SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    token = payload + "." + sig
+    
+    html = DASHBOARD_HTML
+    # Inject the token directly into the frontend so it bypasses the login screen
+    html = html.replace('var TOKEN=localStorage.getItem("sodangi_token")||"";', 'var TOKEN="' + token + '"; localStorage.setItem("sodangi_token", TOKEN);')
+    html = html.replace('var ROLE=localStorage.getItem("sodangi_role")||"";', 'var ROLE="owner"; localStorage.setItem("sodangi_role", ROLE);')
+    html = html.replace('var NAME=localStorage.getItem("sodangi_name")||"";', 'var NAME="Mohammed Kabir"; localStorage.setItem("sodangi_name", NAME);')
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
+
 @router.get("/ui", response_class=HTMLResponse)
 def dashboard_ui():
     return HTMLResponse(content=DASHBOARD_HTML, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache", "Expires": "0"})
@@ -717,6 +711,15 @@ def analytics(request: Request, db: Session = Depends(get_db)):
 def ping():
     return {"status": "alive", "message": "Server is awake and responding!"}
 
+
+@router.get("/agents")
+async def list_agents(request: Request, db: Session = Depends(get_db)):
+    _auth(request)
+    rows = db.query(Agent).all()
+    out = []
+    for a in rows:
+        out.append({"id": a.id, "full_name": a.full_name, "email": a.email, "phone": str(getattr(a, "phone_number", "") or ""), "bio": str(getattr(a, "bio", "") or ""), "photo_url": str(getattr(a, "photo_url", "") or ""), "active": bool(getattr(a, "is_active", True)), "page": "/agent/" + str(a.id)})
+    return out
 
 
 @router.post("/agents/toggle")
