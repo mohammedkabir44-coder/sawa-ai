@@ -248,11 +248,12 @@ def login(req: LoginReq, db: Session = Depends(get_db)):
         Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
         a = db.query(Agent).filter(Agent.email == req.email).first()
         if not a or not _verify_pw(req.password, a.password_hash):
-            raise HTTPException(status_code=401, detail="Wrong email or password")
-        return {"token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name}
+            return {"status": "wrong_password"}
+        return {"token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name, "status": "success"}
     except Exception as e:
         import traceback
-        raise HTTPException(status_code=500, detail=str(traceback.format_exc()))
+        return {"status": "crashed", "traceback": traceback.format_exc()}
+
 
 @router.get("/products")
 def list_products(db: Session = Depends(get_db)):
