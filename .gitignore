@@ -1,2 +1,12 @@
-.vercel
-.env*
+﻿__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+env/
+.env
+.vercel/
+*.db
+*.sqlite3
+node_modules/
+*.log
