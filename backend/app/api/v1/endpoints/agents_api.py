@@ -1,4 +1,4 @@
-
+﻿
 import json, hmac, hashlib, base64, time, os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -373,25 +373,19 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <title>Sodangi Motors</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
 
+
 function showStatus() {
     document.getElementById('main-content').innerHTML = '<div class="p-4 text-center text-gray-400">Loading your inventory...</div>';
     fetch('/api/v1/dashboard/products', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
     .then(r => r.json())
     .then(cars => {
         let html = '<div class="p-4"><h2 class="text-2xl font-bold text-white mb-4">📢 WhatsApp Status Blaster</h2>';
-        if (!cars || cars.length === 0) {
-            html += '<p class="text-gray-400">No cars found. Add a car first!</p>';
-        } else {
+        if (!cars || cars.length === 0) { html += '<p class="text-gray-400">No cars found.</p>'; }
+        else {
             cars.forEach((car, idx) => {
                 let img = car.image_url || car.images || '';
                 if (img.startsWith('[')) img = JSON.parse(img)[0];
-                html += `
-                <div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg">
-                    <img src="${img}" class="w-full h-40 object-cover rounded-lg mb-3">
-                    <h3 class="text-lg font-bold text-white">${car.name}</h3>
-                    <p class="text-emerald-400 font-bold mb-3">₦${Number(car.price).toLocaleString()}</p>
-                    <button onclick="generateStatusImage(${idx})" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button>
-                </div>`;
+                html += `<div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg"><img src="${img}" class="w-full h-40 object-cover rounded-lg mb-3"><h3 class="text-lg font-bold text-white">${car.name}</h3><p class="text-emerald-400 font-bold mb-3">₦${Number(car.price).toLocaleString()}</p><button onclick="generateStatusImage(${idx})" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button></div>`;
             });
         }
         html += '</div>';
@@ -399,80 +393,40 @@ function showStatus() {
         window._statusCars = cars;
     });
 }
-
 function generateStatusImage(idx) {
     let car = window._statusCars[idx];
     toast('Generating your watermark...');
-    
-    // Fetch the logged-in user's profile to get their exact phone number for the watermark
     fetch('/api/v1/dashboard/profile', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
     .then(r => r.json())
-    .then(profile => {
-        let phone = profile.phone || profile.phone_number || '08000000000';
-        let name = profile.full_name || 'Sodangi Motors';
-        drawCanvas(car, name, phone);
-    }).catch(() => drawCanvas(car, 'Sodangi Motors', '08000000000'));
+    .then(profile => { drawCanvas(car, profile.full_name || 'Sodangi', profile.phone || profile.phone_number || '08000000000'); })
+    .catch(() => drawCanvas(car, 'Sodangi', '08000000000'));
 }
-
 function drawCanvas(car, name, phone) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
     img.crossOrigin = "anonymous";
-    
     let imgSrc = car.image_url || car.images || '';
     if (imgSrc.startsWith('[')) imgSrc = JSON.parse(imgSrc)[0];
-    
     img.onload = () => {
-        // 9:16 Aspect Ratio for WhatsApp Status
-        canvas.width = 1080;
-        canvas.height = 1920;
-        
-        // Draw Image (Cover Fit)
+        canvas.width = 1080; canvas.height = 1920;
         const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width / 2) - (img.width / 2) * scale;
-        const y = (canvas.height / 2) - (img.height / 2) * scale;
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        
-        // Dark Gradient Overlay at the bottom for text readability
-        const gradient = ctx.createLinearGradient(0, canvas.height - 600, 0, canvas.height);
-        gradient.addColorStop(0, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, canvas.height - 600, canvas.width, 600);
-        
-        // Draw Text with Drop Shadow
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 15;
-        
-        ctx.font = 'bold 70px sans-serif';
-        ctx.fillText(car.name, canvas.width / 2, canvas.height - 350);
-        
-        ctx.font = 'bold 100px sans-serif';
-        ctx.fillStyle = '#10B981'; // Emerald Green for price
-        ctx.fillText('₦' + Number(car.price).toLocaleString(), canvas.width / 2, canvas.height - 220);
-        
-        ctx.font = 'bold 50px sans-serif';
-        ctx.fillStyle = 'white';
-        ctx.fillText(name, canvas.width / 2, canvas.height - 110);
-        
-        ctx.font = 'bold 60px sans-serif';
-        ctx.fillStyle = '#FBBF24'; // Gold for phone number
-        ctx.fillText('📞 ' + phone, canvas.width / 2, canvas.height - 40);
-        
-        // Trigger Download to Phone Gallery
+        ctx.drawImage(img, (canvas.width/2)-(img.width/2)*scale, (canvas.height/2)-(img.height/2)*scale, img.width*scale, img.height*scale);
+        const grad = ctx.createLinearGradient(0, canvas.height-600, 0, canvas.height);
+        grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.95)');
+        ctx.fillStyle = grad; ctx.fillRect(0, canvas.height-600, canvas.width, 600);
+        ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.shadowColor = 'black'; ctx.shadowBlur = 15;
+        ctx.font = 'bold 70px sans-serif'; ctx.fillText(car.name, canvas.width/2, canvas.height-350);
+        ctx.font = 'bold 100px sans-serif'; ctx.fillStyle = '#10B981'; ctx.fillText('₦' + Number(car.price).toLocaleString(), canvas.width/2, canvas.height-220);
+        ctx.font = 'bold 50px sans-serif'; ctx.fillStyle = 'white'; ctx.fillText(name, canvas.width/2, canvas.height-110);
+        ctx.font = 'bold 60px sans-serif'; ctx.fillStyle = '#FBBF24'; ctx.fillText('📞 ' + phone, canvas.width/2, canvas.height-40);
         const link = document.createElement('a');
         link.download = car.name.replace(/\s+/g, '_') + '_Status.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        toast('Status Image Saved to Gallery! 🎉');
+        link.href = canvas.toDataURL('image/png'); link.click();
+        toast('Status Image Saved! 🎉');
     };
-    img.onerror = () => toast('Error loading image.');
     img.src = imgSrc;
 }
-
 </script>
 <style>
   :root { --bg: #0B0F19; --card: #151F38; --accent: #22C55E; --text: #F8FAFC; --muted: #94A3B8; }
@@ -636,106 +590,6 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/api/v1/da
 if(TOKEN){enterDash();}
 
 
-function showStatus() {
-    document.getElementById('main-content').innerHTML = '<div class="p-4 text-center text-gray-400">Loading your inventory...</div>';
-    fetch('/api/v1/dashboard/products', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(cars => {
-        let html = '<div class="p-4"><h2 class="text-2xl font-bold text-white mb-4">📢 WhatsApp Status Blaster</h2>';
-        if (!cars || cars.length === 0) {
-            html += '<p class="text-gray-400">No cars found. Add a car first!</p>';
-        } else {
-            cars.forEach((car, idx) => {
-                let img = car.image_url || car.images || '';
-                if (img.startsWith('[')) img = JSON.parse(img)[0];
-                html += `
-                <div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg">
-                    <img src="${img}" class="w-full h-40 object-cover rounded-lg mb-3">
-                    <h3 class="text-lg font-bold text-white">${car.name}</h3>
-                    <p class="text-emerald-400 font-bold mb-3">₦${Number(car.price).toLocaleString()}</p>
-                    <button onclick="generateStatusImage(${idx})" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button>
-                </div>`;
-            });
-        }
-        html += '</div>';
-        document.getElementById('main-content').innerHTML = html;
-        window._statusCars = cars;
-    });
-}
-
-function generateStatusImage(idx) {
-    let car = window._statusCars[idx];
-    toast('Generating your watermark...');
-    
-    // Fetch the logged-in user's profile to get their exact phone number for the watermark
-    fetch('/api/v1/dashboard/profile', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(profile => {
-        let phone = profile.phone || profile.phone_number || '08000000000';
-        let name = profile.full_name || 'Sodangi Motors';
-        drawCanvas(car, name, phone);
-    }).catch(() => drawCanvas(car, 'Sodangi Motors', '08000000000'));
-}
-
-function drawCanvas(car, name, phone) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    
-    let imgSrc = car.image_url || car.images || '';
-    if (imgSrc.startsWith('[')) imgSrc = JSON.parse(imgSrc)[0];
-    
-    img.onload = () => {
-        // 9:16 Aspect Ratio for WhatsApp Status
-        canvas.width = 1080;
-        canvas.height = 1920;
-        
-        // Draw Image (Cover Fit)
-        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width / 2) - (img.width / 2) * scale;
-        const y = (canvas.height / 2) - (img.height / 2) * scale;
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        
-        // Dark Gradient Overlay at the bottom for text readability
-        const gradient = ctx.createLinearGradient(0, canvas.height - 600, 0, canvas.height);
-        gradient.addColorStop(0, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, canvas.height - 600, canvas.width, 600);
-        
-        // Draw Text with Drop Shadow
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 15;
-        
-        ctx.font = 'bold 70px sans-serif';
-        ctx.fillText(car.name, canvas.width / 2, canvas.height - 350);
-        
-        ctx.font = 'bold 100px sans-serif';
-        ctx.fillStyle = '#10B981'; // Emerald Green for price
-        ctx.fillText('₦' + Number(car.price).toLocaleString(), canvas.width / 2, canvas.height - 220);
-        
-        ctx.font = 'bold 50px sans-serif';
-        ctx.fillStyle = 'white';
-        ctx.fillText(name, canvas.width / 2, canvas.height - 110);
-        
-        ctx.font = 'bold 60px sans-serif';
-        ctx.fillStyle = '#FBBF24'; // Gold for phone number
-        ctx.fillText('📞 ' + phone, canvas.width / 2, canvas.height - 40);
-        
-        // Trigger Download to Phone Gallery
-        const link = document.createElement('a');
-        link.download = car.name.replace(/\s+/g, '_') + '_Status.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        toast('Status Image Saved to Gallery! 🎉');
-    };
-    img.onerror = () => toast('Error loading image.');
-    img.src = imgSrc;
-}
-
 </script>
 </body>
 </html>"""
@@ -754,106 +608,6 @@ def owner_auto_login():
     var TOKEN='""" + token + """',ROLE='owner',NAME='Mohammed Kabir';
     if(typeof enterDash === 'function') { enterDash(); }
     
-
-function showStatus() {
-    document.getElementById('main-content').innerHTML = '<div class="p-4 text-center text-gray-400">Loading your inventory...</div>';
-    fetch('/api/v1/dashboard/products', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(cars => {
-        let html = '<div class="p-4"><h2 class="text-2xl font-bold text-white mb-4">📢 WhatsApp Status Blaster</h2>';
-        if (!cars || cars.length === 0) {
-            html += '<p class="text-gray-400">No cars found. Add a car first!</p>';
-        } else {
-            cars.forEach((car, idx) => {
-                let img = car.image_url || car.images || '';
-                if (img.startsWith('[')) img = JSON.parse(img)[0];
-                html += `
-                <div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg">
-                    <img src="${img}" class="w-full h-40 object-cover rounded-lg mb-3">
-                    <h3 class="text-lg font-bold text-white">${car.name}</h3>
-                    <p class="text-emerald-400 font-bold mb-3">₦${Number(car.price).toLocaleString()}</p>
-                    <button onclick="generateStatusImage(${idx})" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button>
-                </div>`;
-            });
-        }
-        html += '</div>';
-        document.getElementById('main-content').innerHTML = html;
-        window._statusCars = cars;
-    });
-}
-
-function generateStatusImage(idx) {
-    let car = window._statusCars[idx];
-    toast('Generating your watermark...');
-    
-    // Fetch the logged-in user's profile to get their exact phone number for the watermark
-    fetch('/api/v1/dashboard/profile', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(profile => {
-        let phone = profile.phone || profile.phone_number || '08000000000';
-        let name = profile.full_name || 'Sodangi Motors';
-        drawCanvas(car, name, phone);
-    }).catch(() => drawCanvas(car, 'Sodangi Motors', '08000000000'));
-}
-
-function drawCanvas(car, name, phone) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    
-    let imgSrc = car.image_url || car.images || '';
-    if (imgSrc.startsWith('[')) imgSrc = JSON.parse(imgSrc)[0];
-    
-    img.onload = () => {
-        // 9:16 Aspect Ratio for WhatsApp Status
-        canvas.width = 1080;
-        canvas.height = 1920;
-        
-        // Draw Image (Cover Fit)
-        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width / 2) - (img.width / 2) * scale;
-        const y = (canvas.height / 2) - (img.height / 2) * scale;
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        
-        // Dark Gradient Overlay at the bottom for text readability
-        const gradient = ctx.createLinearGradient(0, canvas.height - 600, 0, canvas.height);
-        gradient.addColorStop(0, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, canvas.height - 600, canvas.width, 600);
-        
-        // Draw Text with Drop Shadow
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 15;
-        
-        ctx.font = 'bold 70px sans-serif';
-        ctx.fillText(car.name, canvas.width / 2, canvas.height - 350);
-        
-        ctx.font = 'bold 100px sans-serif';
-        ctx.fillStyle = '#10B981'; // Emerald Green for price
-        ctx.fillText('₦' + Number(car.price).toLocaleString(), canvas.width / 2, canvas.height - 220);
-        
-        ctx.font = 'bold 50px sans-serif';
-        ctx.fillStyle = 'white';
-        ctx.fillText(name, canvas.width / 2, canvas.height - 110);
-        
-        ctx.font = 'bold 60px sans-serif';
-        ctx.fillStyle = '#FBBF24'; // Gold for phone number
-        ctx.fillText('📞 ' + phone, canvas.width / 2, canvas.height - 40);
-        
-        // Trigger Download to Phone Gallery
-        const link = document.createElement('a');
-        link.download = car.name.replace(/\s+/g, '_') + '_Status.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        toast('Status Image Saved to Gallery! 🎉');
-    };
-    img.onerror = () => toast('Error loading image.');
-    img.src = imgSrc;
-}
 
 </script>"""
     html = DASHBOARD_HTML.replace("</body>", force_js + "</body>")
@@ -987,208 +741,8 @@ def agent_ad(agent_id: int, db: Session = Depends(get_db)):
     bio = str(getattr(a, "bio", "") or "")
     html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>{a.full_name} | Sodangi Motors</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><meta property="og:title" content="{a.full_name} - Sodangi Motors Showroom"><meta property="og:description" content="{bio or 'Verified car dealer'}"><meta property="og:image" content="{hero}"><style>{css}</style><script src="https://cdn.jsdelivr.net/npm/chart.js">
 
-function showStatus() {
-    document.getElementById('main-content').innerHTML = '<div class="p-4 text-center text-gray-400">Loading your inventory...</div>';
-    fetch('/api/v1/dashboard/products', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(cars => {
-        let html = '<div class="p-4"><h2 class="text-2xl font-bold text-white mb-4">📢 WhatsApp Status Blaster</h2>';
-        if (!cars || cars.length === 0) {
-            html += '<p class="text-gray-400">No cars found. Add a car first!</p>';
-        } else {
-            cars.forEach((car, idx) => {
-                let img = car.image_url || car.images || '';
-                if (img.startsWith('[')) img = JSON.parse(img)[0];
-                html += `
-                <div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg">
-                    <img src="${img}" class="w-full h-40 object-cover rounded-lg mb-3">
-                    <h3 class="text-lg font-bold text-white">${car.name}</h3>
-                    <p class="text-emerald-400 font-bold mb-3">₦${Number(car.price).toLocaleString()}</p>
-                    <button onclick="generateStatusImage(${idx})" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button>
-                </div>`;
-            });
-        }
-        html += '</div>';
-        document.getElementById('main-content').innerHTML = html;
-        window._statusCars = cars;
-    });
-}
-
-function generateStatusImage(idx) {
-    let car = window._statusCars[idx];
-    toast('Generating your watermark...');
-    
-    // Fetch the logged-in user's profile to get their exact phone number for the watermark
-    fetch('/api/v1/dashboard/profile', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(profile => {
-        let phone = profile.phone || profile.phone_number || '08000000000';
-        let name = profile.full_name || 'Sodangi Motors';
-        drawCanvas(car, name, phone);
-    }).catch(() => drawCanvas(car, 'Sodangi Motors', '08000000000'));
-}
-
-function drawCanvas(car, name, phone) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    
-    let imgSrc = car.image_url || car.images || '';
-    if (imgSrc.startsWith('[')) imgSrc = JSON.parse(imgSrc)[0];
-    
-    img.onload = () => {
-        // 9:16 Aspect Ratio for WhatsApp Status
-        canvas.width = 1080;
-        canvas.height = 1920;
-        
-        // Draw Image (Cover Fit)
-        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width / 2) - (img.width / 2) * scale;
-        const y = (canvas.height / 2) - (img.height / 2) * scale;
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        
-        // Dark Gradient Overlay at the bottom for text readability
-        const gradient = ctx.createLinearGradient(0, canvas.height - 600, 0, canvas.height);
-        gradient.addColorStop(0, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, canvas.height - 600, canvas.width, 600);
-        
-        // Draw Text with Drop Shadow
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 15;
-        
-        ctx.font = 'bold 70px sans-serif';
-        ctx.fillText(car.name, canvas.width / 2, canvas.height - 350);
-        
-        ctx.font = 'bold 100px sans-serif';
-        ctx.fillStyle = '#10B981'; // Emerald Green for price
-        ctx.fillText('₦' + Number(car.price).toLocaleString(), canvas.width / 2, canvas.height - 220);
-        
-        ctx.font = 'bold 50px sans-serif';
-        ctx.fillStyle = 'white';
-        ctx.fillText(name, canvas.width / 2, canvas.height - 110);
-        
-        ctx.font = 'bold 60px sans-serif';
-        ctx.fillStyle = '#FBBF24'; // Gold for phone number
-        ctx.fillText('📞 ' + phone, canvas.width / 2, canvas.height - 40);
-        
-        // Trigger Download to Phone Gallery
-        const link = document.createElement('a');
-        link.download = car.name.replace(/\s+/g, '_') + '_Status.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        toast('Status Image Saved to Gallery! 🎉');
-    };
-    img.onerror = () => toast('Error loading image.');
-    img.src = imgSrc;
-}
-
 </script>
 </head><body><div class="hero"><img src="{hero}" alt="Hero"><div class="hero-overlay"></div></div><div class="agent-card"><div class="agent-inner"><img src="{photo_url or 'https://ui-avatars.com/api/?name='+_up.quote(str(a.full_name))+'&background=10B981&color=fff&size=200'}" alt="{a.full_name}"><div class="agent-info"><span class="badge">Verified Agent</span><h1>{a.full_name}</h1><p>{phone}</p></div></div></div><div class="content"><p style="color:#94A3B8;font-size:15px;line-height:1.6;margin-bottom:30px">{bio}</p><h2 class="section-title">Available Vehicles</h2><div class="grid">{cards if cards else '<p style="color:#94A3B8">No vehicles currently listed.</p>'}</div><div class="share-row"><button onclick="shareIt()">📤 Share</button><button onclick="fbIt()">Facebook</button><button onclick="copyIt()">Copy Link</button></div></div><div class="cta"><a href="{wl}">💬 Chat on WhatsApp to Buy</a></div><div id="t"></div><script>{js}
-
-function showStatus() {
-    document.getElementById('main-content').innerHTML = '<div class="p-4 text-center text-gray-400">Loading your inventory...</div>';
-    fetch('/api/v1/dashboard/products', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(cars => {
-        let html = '<div class="p-4"><h2 class="text-2xl font-bold text-white mb-4">📢 WhatsApp Status Blaster</h2>';
-        if (!cars || cars.length === 0) {
-            html += '<p class="text-gray-400">No cars found. Add a car first!</p>';
-        } else {
-            cars.forEach((car, idx) => {
-                let img = car.image_url || car.images || '';
-                if (img.startsWith('[')) img = JSON.parse(img)[0];
-                html += `
-                <div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg">
-                    <img src="${img}" class="w-full h-40 object-cover rounded-lg mb-3">
-                    <h3 class="text-lg font-bold text-white">${car.name}</h3>
-                    <p class="text-emerald-400 font-bold mb-3">₦${Number(car.price).toLocaleString()}</p>
-                    <button onclick="generateStatusImage(${idx})" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button>
-                </div>`;
-            });
-        }
-        html += '</div>';
-        document.getElementById('main-content').innerHTML = html;
-        window._statusCars = cars;
-    });
-}
-
-function generateStatusImage(idx) {
-    let car = window._statusCars[idx];
-    toast('Generating your watermark...');
-    
-    // Fetch the logged-in user's profile to get their exact phone number for the watermark
-    fetch('/api/v1/dashboard/profile', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(profile => {
-        let phone = profile.phone || profile.phone_number || '08000000000';
-        let name = profile.full_name || 'Sodangi Motors';
-        drawCanvas(car, name, phone);
-    }).catch(() => drawCanvas(car, 'Sodangi Motors', '08000000000'));
-}
-
-function drawCanvas(car, name, phone) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    
-    let imgSrc = car.image_url || car.images || '';
-    if (imgSrc.startsWith('[')) imgSrc = JSON.parse(imgSrc)[0];
-    
-    img.onload = () => {
-        // 9:16 Aspect Ratio for WhatsApp Status
-        canvas.width = 1080;
-        canvas.height = 1920;
-        
-        // Draw Image (Cover Fit)
-        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width / 2) - (img.width / 2) * scale;
-        const y = (canvas.height / 2) - (img.height / 2) * scale;
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        
-        // Dark Gradient Overlay at the bottom for text readability
-        const gradient = ctx.createLinearGradient(0, canvas.height - 600, 0, canvas.height);
-        gradient.addColorStop(0, 'rgba(0,0,0,0)');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, canvas.height - 600, canvas.width, 600);
-        
-        // Draw Text with Drop Shadow
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 15;
-        
-        ctx.font = 'bold 70px sans-serif';
-        ctx.fillText(car.name, canvas.width / 2, canvas.height - 350);
-        
-        ctx.font = 'bold 100px sans-serif';
-        ctx.fillStyle = '#10B981'; // Emerald Green for price
-        ctx.fillText('₦' + Number(car.price).toLocaleString(), canvas.width / 2, canvas.height - 220);
-        
-        ctx.font = 'bold 50px sans-serif';
-        ctx.fillStyle = 'white';
-        ctx.fillText(name, canvas.width / 2, canvas.height - 110);
-        
-        ctx.font = 'bold 60px sans-serif';
-        ctx.fillStyle = '#FBBF24'; // Gold for phone number
-        ctx.fillText('📞 ' + phone, canvas.width / 2, canvas.height - 40);
-        
-        // Trigger Download to Phone Gallery
-        const link = document.createElement('a');
-        link.download = car.name.replace(/\s+/g, '_') + '_Status.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        toast('Status Image Saved to Gallery! 🎉');
-    };
-    img.onerror = () => toast('Error loading image.');
-    img.src = imgSrc;
-}
 
 </script></body></html>"""
     return HTMLResponse(html)
@@ -1459,3 +1013,4 @@ def get_sw():
     self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
     """
     return Response(content=js, media_type="application/javascript")
+
