@@ -256,10 +256,11 @@ def login(req: LoginReq, db: Session = Depends(get_db)):
 
 @router.get("/products")
 def list_products(db: Session = Depends(get_db)):
-    ps = db.query(Product).filter(Product.business_id == SODANGI_BUSINESS_ID).all()
+    # Fetch ALL active cars in the system (Bypasses the broken hardcoded Business ID 3)
+    ps = db.query(Product).filter(Product.is_active == True).all()
     out = []
     for p in ps:
-        out.append({"id": p.id, "name": p.name, "price": p.price, "stock": p.stock, "images": _extract_imgs_list(p.images)})
+        out.append({"id": p.id, "name": p.name, "price": p.price, "stock": p.stock, "image_url": p.images, "images": _extract_imgs_list(p.images)})
     return out
 
 @router.post("/products/upload")
@@ -396,7 +397,7 @@ function showStatus() {
 function generateStatusImage(idx) {
     let car = window._statusCars[idx];
     toast('Generating your watermark...');
-    fetch('/api/v1/dashboard/profile', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
+    fetch('/api/v1/dashboard/profile/me', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
     .then(r => r.json())
     .then(profile => { drawCanvas(car, profile.full_name || 'Sodangi', profile.phone || profile.phone_number || '08000000000'); })
     .catch(() => drawCanvas(car, 'Sodangi', '08000000000'));
