@@ -172,33 +172,41 @@ def fix_abdull(db: Session = Depends(get_db)):
 def master_seed(db: Session = Depends(get_db)):
     from app.api.v1.endpoints.agents_api import Agent, ProductAgent
     from app.models.product import Product
-    from app.core.database import engine
     from sqlalchemy import text
     import traceback
     try:
-        # ISOLATED TRANSACTION: Create business in a separate connection so it doesn't pollute the main session
+        # 1. DYNAMICALLY FIND OR CREATE THE BUSINESS ID
         try:
-            with engine.begin() as conn:
-                conn.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
-                conn.execute(text("INSERT INTO businesses (id, name) VALUES (3, 'Sodangi Motors') ON CONFLICT (id) DO NOTHING"))
+            res = db.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
+            if not res:
+                db.execute(text("INSERT INTO businesses (name) VALUES ('Sodangi Motors')"))
+                db.commit()
+                res = db.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
+            biz_id = res[0]
         except Exception:
-            pass
+            db.rollback()
+            db.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
+            db.execute(text("INSERT INTO businesses (name) VALUES ('Sodangi Motors')"))
+            db.commit()
+            res = db.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
+            biz_id = res[0]
 
+        # 2. FIND ABDULL
         abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
         if not abdull: return {"status": "ERROR", "msg": "Abdull not found"}
         
-        # Force create the car
-        car = Product(business_id=3, name="Toyota Camry 2022", price=8500000.0, stock=1, images='["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', is_active=True)
+        # 3. CREATE CAR WITH THE REAL BIZ_ID
+        car = Product(business_id=biz_id, name="Toyota Camry 2022", price=8500000.0, stock=1, images='["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', is_active=True)
         db.add(car)
         db.commit()
         db.refresh(car)
         
-        # Link the car to Abdull
+        # 4. LINK CAR TO ABDULL
         link = ProductAgent(product_id=car.id, agent_id=abdull.id)
         db.add(link)
         db.commit()
         
-        return {"status": "SEEDED", "car_id": car.id, "agent_id": abdull.id}
+        return {"status": "SEEDED", "car_id": car.id, "agent_id": abdull.id, "biz_id": biz_id}
     except Exception as e:
         db.rollback()
         return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
