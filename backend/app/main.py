@@ -164,3 +164,42 @@ def fix_abdull(db: Session = Depends(get_db)):
         return {"status": "FIXED", "abdull_id": abdull.id, "cars_assigned": count}
     except Exception as e:
         return {"status": "ERROR", "error": str(e), "trace": traceback.format_exc()}
+
+
+@app.post("/api/v1/master-seed")
+def master_seed(db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.agents_api import Agent, ProductAgent
+    from app.models.product import Product
+    import traceback
+    try:
+        Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        ProductAgent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        Product.__table__.create(bind=db.get_bind(), checkfirst=True)
+        
+        # FIX POSTGRES FOREIGN KEY: Ensure Business ID 3 exists
+        from sqlalchemy import text
+        try:
+            db.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
+            db.execute(text("INSERT INTO businesses (id, name) VALUES (3, 'Sodangi Motors') ON CONFLICT (id) DO NOTHING"))
+            db.commit()
+        except:
+            pass
+
+        abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
+        if not abdull: return {"status": "ERROR", "msg": "Abdull not found"}
+        
+        # Force create the car directly in Postgres
+        car = Product(business_id=3, name="Toyota Camry 2022", price=8500000.0, stock=1, images='["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', is_active=True)
+        db.add(car)
+        db.commit()
+        db.refresh(car)
+        
+        # Link the car to Abdull
+        link = ProductAgent(product_id=car.id, agent_id=abdull.id)
+        db.add(link)
+        db.commit()
+        
+        return {"status": "SEEDED", "car_id": car.id, "agent_id": abdull.id}
+    except Exception as e:
+        db.rollback()
+        return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
