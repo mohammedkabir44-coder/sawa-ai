@@ -172,48 +172,72 @@ def fix_abdull(db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/master-seed")
-def master_seed():
-    from app.core.database import engine
-    from sqlalchemy import text
+def master_seed(db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.agents_api import Agent, ProductAgent
+    from app.models.product import Product
     import traceback, random
     try:
-        with engine.begin() as conn:
-            # 1. GRAB EXISTING BUSINESS ID (WE DO NOT INSERT INTO BUSINESSES!)
-            res = conn.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
-            if not res:
-                return {"status": "ERROR", "msg": "No businesses found in DB"}
-            biz_id = res[0]
+        # 1. GET OR CREATE BUSINESS (Using ORM to satisfy all hidden NOT NULL constraints!)
+        try:
+            from app.models.business import Business
+            biz = db.query(Business).first()
+            if not biz:
+                biz = Business(name="Sodangi Motors")
+                # Dynamically set any required columns the ORM model might have
+                if hasattr(biz, 'business_type'): biz.business_type = "dealer"
+                if hasattr(biz, 'is_active'): biz.is_active = True
+                if hasattr(biz, 'phone'): biz.phone = "080000"
+                if hasattr(biz, 'country'): biz.country = "Nigeria"
+                db.add(biz)
+                db.commit()
+                db.refresh(biz)
+            biz_id = biz.id
+        except Exception as biz_err:
+            # Fallback to raw SQL if Business model is missing
+            from sqlalchemy import text
+            from app.core.database import engine
+            with engine.begin() as conn:
+                conn.execute(text("INSERT INTO businesses (name, business_type) VALUES ('Sodangi Motors', 'dealer') ON CONFLICT DO NOTHING"))
+                res = conn.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
+                biz_id = res[0]
 
-            # 2. Ensure Abdull exists
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS sodangi_agents (
-                    id SERIAL PRIMARY KEY, full_name VARCHAR, email VARCHAR UNIQUE, 
-                    password_hash VARCHAR, role VARCHAR DEFAULT 'agent', 
-                    phone_number VARCHAR, bio TEXT, photo_url TEXT, is_active BOOLEAN DEFAULT TRUE
-                )
-            """))
-            conn.execute(text("""
-                INSERT INTO sodangi_agents (full_name, email, password_hash, role, phone_number, is_active)
-                SELECT 'Abdull Gero', 'abdull.gero@sodangi.com', 'dummy', 'agent', '08068002803', TRUE
-                WHERE NOT EXISTS (SELECT 1 FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com')
-            """))
-            abdull_res = conn.execute(text("SELECT id FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com'")).fetchone()
-            abdull_id = abdull_res[0]
+        # 2. CREATE ABDULL (Using ORM)
+        abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
+        if not abdull:
+            abdull = Agent(full_name="Abdull Gero", email="abdull.gero@sodangi.com", password_hash="dummy", role="agent", phone_number="08068002803", is_active=True)
+            db.add(abdull)
+            db.commit()
+            db.refresh(abdull)
+        abdull_id = abdull.id
 
-            # 3. Insert Car
-            sku = f"CAMRY-{random.randint(1000, 9999)}"
-            conn.execute(text("""
-                INSERT INTO products (business_id, name, description, price, currency, sku, category, stock, availability, images, location, additional_info, is_active, created_at, updated_at)
-                VALUES (:biz, 'Toyota Camry 2022', 'Clean Camry for Abdull', 8500000.0, 'NGN', :sku, 'Cars', 1, 'available', '["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', 'Kano', '', TRUE, NOW(), NOW())
-            """), {"biz": biz_id, "sku": sku})
-            
-            car_res = conn.execute(text("SELECT id FROM products WHERE name LIKE '%Toyota Camry 2022%' ORDER BY id DESC LIMIT 1")).fetchone()
-            car_id = car_res[0]
+        # 3. CREATE CAR USING ORM (Automatically handles created_at, updated_at, and all defaults!)
+        sku = f"CAMRY-{random.randint(1000, 9999)}"
+        car = Product(
+            business_id=biz_id, 
+            name="Toyota Camry 2022", 
+            description="Clean Camry for Abdull", 
+            price=8500000.0, 
+            currency="NGN",
+            sku=sku,
+            category="Cars",
+            stock=1, 
+            availability="available",
+            images='["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', 
+            location="Kano", 
+            additional_info="", 
+            is_active=True
+        )
+        db.add(car)
+        db.commit()
+        db.refresh(car)
+        car_id = car.id
 
-            # 4. Link Car to Abdull
-            conn.execute(text("CREATE TABLE IF NOT EXISTS sodangi_product_agents (id SERIAL PRIMARY KEY, product_id INTEGER, agent_id INTEGER)"))
-            conn.execute(text("INSERT INTO sodangi_product_agents (product_id, agent_id) VALUES (:pid, :aid)"), {"pid": car_id, "aid": abdull_id})
+        # 4. LINK CAR TO ABDULL
+        link = ProductAgent(product_id=car_id, agent_id=abdull_id)
+        db.add(link)
+        db.commit()
 
         return {"status": "SEEDED", "car_id": car_id, "agent_id": abdull_id, "biz_id": biz_id}
     except Exception as e:
+        db.rollback()
         return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
