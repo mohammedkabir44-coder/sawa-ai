@@ -139,74 +139,50 @@ async def master_create(request: Request):
 
 
 
-@app.post("/api/v1/fix-abdull")
-def fix_abdull(db: Session = Depends(get_db)):
-    from app.api.v1.endpoints.agents_api import Agent, ProductAgent
-    from app.models.product import Product
-    import traceback
-    try:
-        Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
-        ProductAgent.__table__.create(bind=db.get_bind(), checkfirst=True)
-        
-        abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
-        if not abdull: return {"status": "NOT_FOUND", "msg": "Abdull not in DB"}
-        
-        abdull.role = "agent"
-        
-        prods = db.query(Product).filter(Product.business_id == 3, Product.is_active.is_(True)).all()
-        count = 0
-        for p in prods:
-            exists = db.query(ProductAgent).filter(ProductAgent.product_id == p.id, ProductAgent.agent_id == abdull.id).first()
-            if not exists:
-                db.add(ProductAgent(product_id=p.id, agent_id=abdull.id))
-                count += 1
-        db.commit()
-        return {"status": "FIXED", "abdull_id": abdull.id, "cars_assigned": count}
-    except Exception as e:
-        return {"status": "ERROR", "error": str(e), "trace": traceback.format_exc()}
-
-
 
 
 @app.post("/api/v1/master-seed")
-def master_seed(db: Session = Depends(get_db)):
-    from app.api.v1.endpoints.agents_api import Agent, ProductAgent
-    from app.models.product import Product
+def master_seed():
+    from app.core.database import engine
     from sqlalchemy import text
-    import traceback
+    import traceback, random
     try:
-        # 1. DYNAMICALLY FIND OR CREATE THE BUSINESS ID
-        try:
-            res = db.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
-            if not res:
-                db.execute(text("INSERT INTO businesses (name) VALUES ('Sodangi Motors')"))
-                db.commit()
-                res = db.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
-            biz_id = res[0]
-        except Exception:
-            db.rollback()
-            db.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
-            db.execute(text("INSERT INTO businesses (name) VALUES ('Sodangi Motors')"))
-            db.commit()
-            res = db.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
-            biz_id = res[0]
+        # engine.begin() creates a completely isolated transaction that auto-commits.
+        # This bypasses ALL SQLAlchemy ORM session pollution and foreign key caching!
+        with engine.begin() as conn:
+            # 1. Ensure Business exists and get its REAL ID
+            conn.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
+            conn.execute(text("INSERT INTO businesses (name) VALUES ('Sodangi Motors') ON CONFLICT DO NOTHING"))
+            biz_id = conn.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()[0]
 
-        # 2. FIND ABDULL
-        abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
-        if not abdull: return {"status": "ERROR", "msg": "Abdull not found"}
-        
-        # 3. CREATE CAR WITH THE REAL BIZ_ID
-        car = Product(business_id=biz_id, name="Toyota Camry 2022", price=8500000.0, stock=1, images='["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', is_active=True)
-        db.add(car)
-        db.commit()
-        db.refresh(car)
-        
-        # 4. LINK CAR TO ABDULL
-        link = ProductAgent(product_id=car.id, agent_id=abdull.id)
-        db.add(link)
-        db.commit()
-        
-        return {"status": "SEEDED", "car_id": car.id, "agent_id": abdull.id, "biz_id": biz_id}
+            # 2. Ensure Abdull exists and get his ID
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sodangi_agents (
+                    id SERIAL PRIMARY KEY, full_name VARCHAR, email VARCHAR UNIQUE, 
+                    password_hash VARCHAR, role VARCHAR DEFAULT 'agent', 
+                    phone_number VARCHAR, bio TEXT, photo_url TEXT, is_active BOOLEAN DEFAULT TRUE
+                )
+            """))
+            conn.execute(text("""
+                INSERT INTO sodangi_agents (full_name, email, password_hash, role, phone_number, is_active)
+                SELECT 'Abdull Gero', 'abdull.gero@sodangi.com', 'dummy', 'agent', '08068002803', TRUE
+                WHERE NOT EXISTS (SELECT 1 FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com')
+            """))
+            abdull_id = conn.execute(text("SELECT id FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com'")).fetchone()[0]
+
+            # 3. Force the Car into the products table using the REAL biz_id
+            sku = f"CAMRY-{random.randint(1000, 9999)}"
+            conn.execute(text("""
+                INSERT INTO products (business_id, name, description, price, currency, sku, category, stock, availability, images, location, additional_info, is_active, created_at, updated_at)
+                VALUES (:biz, 'Toyota Camry 2022', 'Clean Camry for Abdull', 8500000.0, 'NGN', :sku, 'Cars', 1, 'available', '["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', 'Kano', '', TRUE, NOW(), NOW())
+            """), {"biz": biz_id, "sku": sku})
+            
+            car_id = conn.execute(text("SELECT id FROM products WHERE name = 'Toyota Camry 2022' ORDER BY id DESC LIMIT 1")).fetchone()[0]
+
+            # 4. Link the Car to Abdull
+            conn.execute(text("CREATE TABLE IF NOT EXISTS sodangi_product_agents (id SERIAL PRIMARY KEY, product_id INTEGER, agent_id INTEGER)"))
+            conn.execute(text("INSERT INTO sodangi_product_agents (product_id, agent_id) VALUES (:pid, :aid)"), {"pid": car_id, "aid": abdull_id})
+
+        return {"status": "SEEDED", "car_id": car_id, "agent_id": abdull_id, "biz_id": biz_id}
     except Exception as e:
-        db.rollback()
         return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
