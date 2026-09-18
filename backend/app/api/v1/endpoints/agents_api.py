@@ -820,3 +820,65 @@ async def agents_create(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(a)
     return {"status": "created", "id": a.id}
+
+
+@router.post("/heal-and-seed")
+def heal_and_seed(db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    from app.models.product import Product
+    import traceback, random
+    
+    try:
+        # 1. SELF-HEALING: Ask Postgres exactly what columns are required for the 'businesses' table
+        cols_query = """
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'businesses' AND is_nullable = 'NO' AND column_default IS NULL
+        """
+        required_cols = db.execute(text(cols_query)).fetchall()
+        
+        col_names = ['"name"']
+        col_values = ["'Sodangi Motors'"]
+        
+        for col_name, data_type in required_cols:
+            if col_name.lower() in ["id", "name"]: continue
+            dt = data_type.lower()
+            if "int" in dt: dummy_val = "1"
+            elif "bool" in dt: dummy_val = "TRUE"
+            elif "time" in dt or "date" in dt: dummy_val = "NOW()"
+            elif "uuid" in dt: dummy_val = "gen_random_uuid()"
+            elif "json" in dt: dummy_val = "'{}'"
+            else: dummy_val = "'dummy'"
+            col_names.append(f'"{col_name}"')
+            col_values.append(dummy_val)
+            
+        # 2. INSERT THE PERFECT BUSINESS ROW
+        insert_sql = f"INSERT INTO businesses ({', '.join(col_names)}) VALUES ({', '.join(col_values)}) RETURNING id"
+        biz_res = db.execute(text(insert_sql)).fetchone()
+        db.commit()
+        biz_id = biz_res[0]
+        
+        # 3. ENSURE ABDULL EXISTS
+        abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
+        if not abdull:
+            abdull = Agent(full_name="Abdull Gero", email="abdull.gero@sodangi.com", password_hash="dummy", role="agent", phone_number="08068002803", is_active=True)
+            db.add(abdull)
+            db.commit()
+            db.refresh(abdull)
+            
+        # 4. CREATE THE CAR USING ORM (Automatically fills all hidden product columns)
+        sku = f"CAMRY-{random.randint(1000, 9999)}"
+        car = Product(business_id=biz_id, name="Toyota Camry 2022", description="Clean Camry", price=8500000.0, currency="NGN", sku=sku, category="Cars", stock=1, availability="available", images='["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', location="Kano", additional_info="", is_active=True)
+        db.add(car)
+        db.commit()
+        db.refresh(car)
+        
+        # 5. LINK CAR TO ABDULL
+        link = ProductAgent(product_id=car.id, agent_id=abdull.id)
+        db.add(link)
+        db.commit()
+        
+        return {"status": "SEEDED", "biz_id": biz_id, "car_id": car.id, "agent_id": abdull.id}
+    except Exception as e:
+        db.rollback()
+        return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
