@@ -264,16 +264,50 @@ def list_products(db: Session = Depends(get_db)):
 
 @router.post("/products/upload")
 def upload(req: ProductReq, request: Request, db: Session = Depends(get_db)):
+    import random
     me = _auth(request)
     try:
-        p = Product(business_id=SODANGI_BUSINESS_ID, name=req.name, price=req.price, stock=req.stock, images=_parse_imgs(req.image_url), is_active=True)
+        # Parse images/video JSON array safely
+        imgs_raw = req.image_url or "[]"
+        if not imgs_raw.startswith("["):
+            imgs_raw = json.dumps([imgs_raw])
+            
+        sku = f"AG-{random.randint(10000, 99999)}"
+        
+        # Create the Product with all required Postgres fields to prevent crashes
+        p = Product(
+            business_id=SODANGI_BUSINESS_ID, 
+            name=req.name, 
+            price=req.price, 
+            description=req.description or "",
+            currency="NGN",
+            sku=sku,
+            category="Cars",
+            stock=req.stock, 
+            availability="available",
+            images=imgs_raw, 
+            location="",
+            additional_info="",
+            is_active=True
+        )
         db.add(p)
         db.commit()
         db.refresh(p)
-        return {"message": "Product uploaded by " + me["e"], "product": req.name, "images_saved": len(_extract_imgs_list(p.images))}
+        
+        # AUTO-LINK: If an agent uploads this, lock it to their profile instantly!
+        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
+        if ag:
+            link = ProductAgent(product_id=p.id, agent_id=ag.id)
+            db.add(link)
+            db.commit()
+            return {"message": "Vehicle locked to your profile!", "product": req.name, "id": p.id}
+            
+        return {"message": "Product uploaded", "product": req.name, "id": p.id}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
 
 @router.post("/connect-whatsapp")
 def connect_wa(req: WAReq, request: Request, db: Session = Depends(get_db)):
