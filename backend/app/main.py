@@ -1,3 +1,8 @@
+
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from app.core.database import get_db
+
 """SAWA AI FastAPI application entry point."""
 import asyncio
 import logging
@@ -132,8 +137,10 @@ async def master_create(request: Request):
         return {"status": "FAILED", "error": str(e), "trace": traceback.format_exc()}
 
 
+
+
 @app.post("/api/v1/fix-abdull")
-async def fix_abdull(request: Request, db: Session = Depends(get_db)):
+def fix_abdull(db: Session = Depends(get_db)):
     from app.api.v1.endpoints.agents_api import Agent, ProductAgent
     from app.models.product import Product
     import traceback
@@ -142,7 +149,7 @@ async def fix_abdull(request: Request, db: Session = Depends(get_db)):
         ProductAgent.__table__.create(bind=db.get_bind(), checkfirst=True)
         
         abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
-        if not abdull: return {"status": "NOT_FOUND"}
+        if not abdull: return {"status": "NOT_FOUND", "msg": "Abdull not in DB"}
         
         abdull.role = "agent"
         
