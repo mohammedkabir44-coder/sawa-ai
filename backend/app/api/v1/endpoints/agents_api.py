@@ -264,50 +264,16 @@ def list_products(db: Session = Depends(get_db)):
 
 @router.post("/products/upload")
 def upload(req: ProductReq, request: Request, db: Session = Depends(get_db)):
-    import random
     me = _auth(request)
     try:
-        # Parse images/video JSON array safely
-        imgs_raw = req.image_url or "[]"
-        if not imgs_raw.startswith("["):
-            imgs_raw = json.dumps([imgs_raw])
-            
-        sku = f"AG-{random.randint(10000, 99999)}"
-        
-        # Create the Product with all required Postgres fields to prevent crashes
-        p = Product(
-            business_id=SODANGI_BUSINESS_ID, 
-            name=req.name, 
-            price=req.price, 
-            description=req.description or "",
-            currency="NGN",
-            sku=sku,
-            category="Cars",
-            stock=req.stock, 
-            availability="available",
-            images=imgs_raw, 
-            location="",
-            additional_info="",
-            is_active=True
-        )
+        p = Product(business_id=SODANGI_BUSINESS_ID, name=req.name, price=req.price, stock=req.stock, images=_parse_imgs(req.image_url), is_active=True)
         db.add(p)
         db.commit()
         db.refresh(p)
-        
-        # AUTO-LINK: If an agent uploads this, lock it to their profile instantly!
-        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
-        if ag:
-            link = ProductAgent(product_id=p.id, agent_id=ag.id)
-            db.add(link)
-            db.commit()
-            return {"message": "Vehicle locked to your profile!", "product": req.name, "id": p.id}
-            
-        return {"message": "Product uploaded", "product": req.name, "id": p.id}
+        return {"message": "Product uploaded by " + me["e"], "product": req.name, "images_saved": len(_extract_imgs_list(p.images))}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-
-
 
 @router.post("/connect-whatsapp")
 def connect_wa(req: WAReq, request: Request, db: Session = Depends(get_db)):
@@ -363,6 +329,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0B0F19">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/api/v1/dashboard/manifest.json">
 <title>Sodangi Motors</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -520,8 +489,9 @@ if(act==="toggle"){api("/agents/toggle","POST",{email:b.getAttribute("data-email
 
 var deferredPrompt=null;
 window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); deferredPrompt=e; });
-function installApp(){ if(deferredPrompt){ deferredPrompt.prompt(); } else { toast("Use browser menu to Install App"); } }
+function installApp(){ if(deferredPrompt){ deferredPrompt.prompt(); } else { var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent); if(isIOS){ toast("Tap the Share icon 🟦 then 'Add to Home Screen'"); } else { toast("Tap the browser menu (⋮) and select 'Install App'"); } } }
 
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/api/v1/dashboard/sw.js').catch(function(){}); }
 if(TOKEN){enterDash();}
 </script>
 </body>
@@ -916,3 +886,26 @@ def heal_and_seed(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
+
+
+@router.get("/manifest.json")
+def get_manifest():
+    return {
+        "name": "Sodangi Motors Agent",
+        "short_name": "Sodangi",
+        "start_url": "/api/v1/dashboard/ui",
+        "display": "standalone",
+        "background_color": "#0B0F19",
+        "theme_color": "#065F46",
+        "icons": [{"src": "https://ui-avatars.com/api/?name=Sodangi&background=065F46&color=fff&size=192", "sizes": "192x192", "type": "image/png"}]
+    }
+
+@router.get("/sw.js")
+def get_sw():
+    from fastapi.responses import Response
+    js = """
+    self.addEventListener('install', e => self.skipWaiting());
+    self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+    self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+    """
+    return Response(content=js, media_type="application/javascript")
