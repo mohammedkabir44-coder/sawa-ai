@@ -166,29 +166,28 @@ def fix_abdull(db: Session = Depends(get_db)):
         return {"status": "ERROR", "error": str(e), "trace": traceback.format_exc()}
 
 
+
+
 @app.post("/api/v1/master-seed")
 def master_seed(db: Session = Depends(get_db)):
     from app.api.v1.endpoints.agents_api import Agent, ProductAgent
     from app.models.product import Product
+    from app.core.database import engine
+    from sqlalchemy import text
     import traceback
     try:
-        Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
-        ProductAgent.__table__.create(bind=db.get_bind(), checkfirst=True)
-        Product.__table__.create(bind=db.get_bind(), checkfirst=True)
-        
-        # FIX POSTGRES FOREIGN KEY: Ensure Business ID 3 exists
-        from sqlalchemy import text
+        # ISOLATED TRANSACTION: Create business in a separate connection so it doesn't pollute the main session
         try:
-            db.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
-            db.execute(text("INSERT INTO businesses (id, name) VALUES (3, 'Sodangi Motors') ON CONFLICT (id) DO NOTHING"))
-            db.commit()
-        except:
+            with engine.begin() as conn:
+                conn.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
+                conn.execute(text("INSERT INTO businesses (id, name) VALUES (3, 'Sodangi Motors') ON CONFLICT (id) DO NOTHING"))
+        except Exception:
             pass
 
         abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
         if not abdull: return {"status": "ERROR", "msg": "Abdull not found"}
         
-        # Force create the car directly in Postgres
+        # Force create the car
         car = Product(business_id=3, name="Toyota Camry 2022", price=8500000.0, stock=1, images='["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', is_active=True)
         db.add(car)
         db.commit()
