@@ -170,6 +170,7 @@ def fix_abdull(db: Session = Depends(get_db)):
 
 
 
+
 @app.post("/api/v1/master-seed")
 def master_seed():
     from app.core.database import engine
@@ -177,12 +178,11 @@ def master_seed():
     import traceback, random
     try:
         with engine.begin() as conn:
-            # 1. JUST GRAB THE FIRST BUSINESS ID THAT ALREADY EXISTS (Bypasses all NOT NULL constraints!)
+            # 1. GRAB EXISTING BUSINESS ID (WE DO NOT INSERT INTO BUSINESSES!)
             res = conn.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
-            if res:
-                biz_id = res[0]
-            else:
-                biz_id = 1  # Fallback to 1 if table is somehow empty
+            if not res:
+                return {"status": "ERROR", "msg": "No businesses found in DB"}
+            biz_id = res[0]
 
             # 2. Ensure Abdull exists
             conn.execute(text("""
@@ -198,18 +198,16 @@ def master_seed():
                 WHERE NOT EXISTS (SELECT 1 FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com')
             """))
             abdull_res = conn.execute(text("SELECT id FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com'")).fetchone()
-            if not abdull_res:
-                return {"status": "CRASHED", "error": "Abdull not found after insert"}
             abdull_id = abdull_res[0]
 
-            # 3. Insert Car using the EXACT columns from the schema
+            # 3. Insert Car
             sku = f"CAMRY-{random.randint(1000, 9999)}"
             conn.execute(text("""
                 INSERT INTO products (business_id, name, description, price, currency, sku, category, stock, availability, images, location, additional_info, is_active, created_at, updated_at)
                 VALUES (:biz, 'Toyota Camry 2022', 'Clean Camry for Abdull', 8500000.0, 'NGN', :sku, 'Cars', 1, 'available', '["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', 'Kano', '', TRUE, NOW(), NOW())
             """), {"biz": biz_id, "sku": sku})
             
-            car_res = conn.execute(text("SELECT id FROM products WHERE name = 'Toyota Camry 2022' ORDER BY id DESC LIMIT 1")).fetchone()
+            car_res = conn.execute(text("SELECT id FROM products WHERE name LIKE '%Toyota Camry 2022%' ORDER BY id DESC LIMIT 1")).fetchone()
             car_id = car_res[0]
 
             # 4. Link Car to Abdull
