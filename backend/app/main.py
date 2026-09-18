@@ -139,6 +139,35 @@ async def master_create(request: Request):
 
 
 
+@app.post("/api/v1/fix-abdull")
+def fix_abdull(db: Session = Depends(get_db)):
+    from app.api.v1.endpoints.agents_api import Agent, ProductAgent
+    from app.models.product import Product
+    import traceback
+    try:
+        Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        ProductAgent.__table__.create(bind=db.get_bind(), checkfirst=True)
+        
+        abdull = db.query(Agent).filter(Agent.email == "abdull.gero@sodangi.com").first()
+        if not abdull: return {"status": "NOT_FOUND", "msg": "Abdull not in DB"}
+        
+        abdull.role = "agent"
+        
+        prods = db.query(Product).filter(Product.business_id == 3, Product.is_active.is_(True)).all()
+        count = 0
+        for p in prods:
+            exists = db.query(ProductAgent).filter(ProductAgent.product_id == p.id, ProductAgent.agent_id == abdull.id).first()
+            if not exists:
+                db.add(ProductAgent(product_id=p.id, agent_id=abdull.id))
+                count += 1
+        db.commit()
+        return {"status": "FIXED", "abdull_id": abdull.id, "cars_assigned": count}
+    except Exception as e:
+        return {"status": "ERROR", "error": str(e), "trace": traceback.format_exc()}
+
+
+
+
 
 
 @app.post("/api/v1/master-seed")
@@ -147,15 +176,15 @@ def master_seed():
     from sqlalchemy import text
     import traceback, random
     try:
-        # engine.begin() creates a completely isolated transaction that auto-commits.
-        # This bypasses ALL SQLAlchemy ORM session pollution and foreign key caching!
         with engine.begin() as conn:
-            # 1. Ensure Business exists and get its REAL ID
-            conn.execute(text("CREATE TABLE IF NOT EXISTS businesses (id SERIAL PRIMARY KEY, name VARCHAR)"))
-            conn.execute(text("INSERT INTO businesses (name) VALUES ('Sodangi Motors') ON CONFLICT DO NOTHING"))
-            biz_id = conn.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()[0]
+            # 1. JUST GRAB THE FIRST BUSINESS ID THAT ALREADY EXISTS (Bypasses all NOT NULL constraints!)
+            res = conn.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
+            if res:
+                biz_id = res[0]
+            else:
+                biz_id = 1  # Fallback to 1 if table is somehow empty
 
-            # 2. Ensure Abdull exists and get his ID
+            # 2. Ensure Abdull exists
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS sodangi_agents (
                     id SERIAL PRIMARY KEY, full_name VARCHAR, email VARCHAR UNIQUE, 
@@ -168,18 +197,22 @@ def master_seed():
                 SELECT 'Abdull Gero', 'abdull.gero@sodangi.com', 'dummy', 'agent', '08068002803', TRUE
                 WHERE NOT EXISTS (SELECT 1 FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com')
             """))
-            abdull_id = conn.execute(text("SELECT id FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com'")).fetchone()[0]
+            abdull_res = conn.execute(text("SELECT id FROM sodangi_agents WHERE email = 'abdull.gero@sodangi.com'")).fetchone()
+            if not abdull_res:
+                return {"status": "CRASHED", "error": "Abdull not found after insert"}
+            abdull_id = abdull_res[0]
 
-            # 3. Force the Car into the products table using the REAL biz_id
+            # 3. Insert Car using the EXACT columns from the schema
             sku = f"CAMRY-{random.randint(1000, 9999)}"
             conn.execute(text("""
                 INSERT INTO products (business_id, name, description, price, currency, sku, category, stock, availability, images, location, additional_info, is_active, created_at, updated_at)
                 VALUES (:biz, 'Toyota Camry 2022', 'Clean Camry for Abdull', 8500000.0, 'NGN', :sku, 'Cars', 1, 'available', '["https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb"]', 'Kano', '', TRUE, NOW(), NOW())
             """), {"biz": biz_id, "sku": sku})
             
-            car_id = conn.execute(text("SELECT id FROM products WHERE name = 'Toyota Camry 2022' ORDER BY id DESC LIMIT 1")).fetchone()[0]
+            car_res = conn.execute(text("SELECT id FROM products WHERE name = 'Toyota Camry 2022' ORDER BY id DESC LIMIT 1")).fetchone()
+            car_id = car_res[0]
 
-            # 4. Link the Car to Abdull
+            # 4. Link Car to Abdull
             conn.execute(text("CREATE TABLE IF NOT EXISTS sodangi_product_agents (id SERIAL PRIMARY KEY, product_id INTEGER, agent_id INTEGER)"))
             conn.execute(text("INSERT INTO sodangi_product_agents (product_id, agent_id) VALUES (:pid, :aid)"), {"pid": car_id, "aid": abdull_id})
 
