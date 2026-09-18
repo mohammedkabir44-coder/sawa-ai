@@ -264,16 +264,54 @@ def list_products(db: Session = Depends(get_db)):
 
 @router.post("/products/upload")
 def upload(req: ProductReq, request: Request, db: Session = Depends(get_db)):
+    import random
+    from sqlalchemy import text
     me = _auth(request)
     try:
-        p = Product(business_id=SODANGI_BUSINESS_ID, name=req.name, price=req.price, stock=req.stock, images=_parse_imgs(req.image_url), is_active=True)
+        # DYNAMIC BUSINESS ID: Find the real ID in Neon instead of guessing 3
+        biz_res = db.execute(text("SELECT id FROM businesses LIMIT 1")).fetchone()
+        actual_biz_id = biz_res[0] if biz_res else 1
+        
+        imgs_raw = req.image_url or "[]"
+        if not imgs_raw.startswith("["):
+            imgs_raw = json.dumps([imgs_raw])
+            
+        sku = f"AG-{random.randint(10000, 99999)}"
+        
+        p = Product(
+            business_id=actual_biz_id, 
+            name=req.name, 
+            price=req.price, 
+            description=req.description or "",
+            currency="NGN",
+            sku=sku,
+            category="Cars",
+            stock=req.stock, 
+            availability="available",
+            images=imgs_raw, 
+            location="",
+            additional_info="",
+            is_active=True
+        )
         db.add(p)
         db.commit()
         db.refresh(p)
-        return {"message": "Product uploaded by " + me["e"], "product": req.name, "images_saved": len(_extract_imgs_list(p.images))}
+        
+        # AUTO-LINK
+        ag = db.query(Agent).filter(Agent.email == me["e"]).first()
+        if ag:
+            link = ProductAgent(product_id=p.id, agent_id=ag.id)
+            db.add(link)
+            db.commit()
+            return {"message": "Vehicle locked to your profile!", "product": req.name, "id": p.id}
+            
+        return {"message": "Product uploaded", "product": req.name, "id": p.id}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        raise HTTPException(status_code=500, detail=str(traceback.format_exc()))
+
+
 
 @router.post("/connect-whatsapp")
 def connect_wa(req: WAReq, request: Request, db: Session = Depends(get_db)):
@@ -692,7 +730,8 @@ async def list_agents(request: Request, db: Session = Depends(get_db)):
     rows = db.query(Agent).all()
     out = []
     for a in rows:
-        out.append({"id": a.id, "full_name": a.full_name, "email": a.email, "phone": str(getattr(a, "phone_number", "") or ""), "bio": str(getattr(a, "bio", "") or ""), "photo_url": str(getattr(a, "photo_url", "") or ""), "active": bool(getattr(a, "is_active", True)), "page": "/agent/" + str(a.id)})
+        phone = str(getattr(a, "phone_number", "") or "")
+        out.append({"id": a.id, "full_name": a.full_name, "email": a.email, "phone": phone, "phone_number": phone, "bio": str(getattr(a, "bio", "") or ""), "photo_url": str(getattr(a, "photo_url", "") or ""), "active": bool(getattr(a, "is_active", True)), "page": "/agent/" + str(a.id)})
     return out
 
 
