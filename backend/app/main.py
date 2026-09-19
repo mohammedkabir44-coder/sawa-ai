@@ -242,3 +242,13 @@ def master_seed(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         return {"status": "CRASHED", "error": str(e), "trace": traceback.format_exc()}
+
+
+@app.get("/api/v1/import-test")
+def import_test():
+    import traceback
+    try:
+        from app.api.v1.endpoints import agents_api
+        return {"status": "SUCCESS", "message": "agents_api imported perfectly!"}
+    except Exception as e:
+        return {"status": "CRASHED", "error": str(e), "type": type(e).__name__, "trace": traceback.format_exc()}
