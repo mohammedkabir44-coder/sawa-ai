@@ -437,67 +437,40 @@ function drawCanvas(car, name, phone) {
 
 function switchToStatus(){
     try{
-        // Highlight the status tab
-        document.querySelectorAll('nav button').forEach(function(b){
-            b.classList.remove('text-emerald-400');
-            b.classList.add('text-gray-400');
-        });
+        document.querySelectorAll('nav button').forEach(function(b){ b.classList.remove('text-emerald-400'); b.classList.add('text-gray-400'); });
         var st = document.getElementById('tab-status');
         if(st){ st.classList.remove('text-gray-400'); st.classList.add('text-emerald-400'); }
-
-        // Hide all other content sections
-        var mainParent = null;
-        document.querySelectorAll('div[id$="-content"]').forEach(function(el){
-            el.style.display = 'none';
-            if(el.parentNode) mainParent = el.parentNode;
-        });
-
-        // Remove old status panel if exists
-        var old = document.getElementById('status-wrap');
-        if(old) old.remove();
-
-        // Create fresh status panel
+        document.querySelectorAll('div[id$="-content"]').forEach(function(el){ el.style.display = 'none'; });
+        var old = document.getElementById('status-wrap'); if(old) old.remove();
+        var mainParent = document.getElementById('add-content'); if(!mainParent) mainParent = document.getElementById('cars-content'); if(!mainParent) mainParent = document.body;
         var sc = document.createElement('div');
         sc.id = 'status-wrap';
-        if(mainParent) mainParent.appendChild(sc);
-        else {
-            var nav = document.querySelector('nav');
-            if(nav && nav.parentNode) nav.parentNode.insertBefore(sc, nav);
-            else document.body.appendChild(sc);
-        }
+        if(mainParent && mainParent.parentNode) mainParent.parentNode.insertBefore(sc, mainParent.nextSibling);
+        else document.body.appendChild(sc);
         sc.style.display = 'block';
-        sc.innerHTML = '<div class="p-4 text-center text-gray-400">Loading your inventory...</div>';
-
-        // Load cars
+        sc.innerHTML = '<div class="p-4 text-center text-gray-400">Loading inventory...</div>';
         fetch('/api/v1/dashboard/products', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
         .then(function(r){ return r.json(); })
         .then(function(cars){
             var html = '<div class="p-4"><h2 class="text-2xl font-bold text-white mb-4">📢 WhatsApp Status Blaster</h2>';
-            if(!cars || cars.length === 0){
-                html += '<p class="text-gray-400">No cars found. Add a car first!</p>';
-            } else {
+            if(!cars || cars.length === 0){ html += '<p>No cars found.</p>'; }
+            else {
                 window._statusCars = cars;
                 cars.forEach(function(car, idx){
                     var img = car.image_url || car.images || '';
                     if(img && img.startsWith('[')){ try{ img = JSON.parse(img)[0]; }catch(e){ img = ''; } }
-                    if(Array.isArray(img)) img = img[0] || '';
                     html += '<div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg">';
                     html += '<img src="' + img + '" class="w-full h-40 object-cover rounded-lg mb-3">';
                     html += '<h3 class="text-lg font-bold text-white">' + car.name + '</h3>';
                     html += '<p class="text-emerald-400 font-bold mb-3">₦' + Number(car.price).toLocaleString() + '</p>';
-                    html += '<button onclick="generateStatusImage(' + idx + ')" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button>';
+                    html += '<button onclick="generateStatusImage(' + idx + ')" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold">Generate Status Image</button>';
                     html += '</div>';
                 });
             }
             html += '</div>';
             sc.innerHTML = html;
-        })
-        .catch(function(e){
-            sc.innerHTML = '<div class="p-4 text-red-400">Error loading cars: ' + e + '</div>';
         });
-    } catch(err){
-        alert('Status tab error: ' + err);
-    }
+    } catch(e){ console.error(e); }
 }
 
 </script>
