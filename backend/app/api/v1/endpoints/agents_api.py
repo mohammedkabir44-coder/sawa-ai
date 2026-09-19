@@ -424,6 +424,7 @@ function drawCanvas(car, name, phone) {
         const link = document.createElement('a');
         link.download = car.name.replace(/\s+/g, '_') + '_Status.png';
         link.href = canvas.toDataURL('image/png'); link.click();
+        canvas.toBlob(function(blob){const file=new File([blob],'status.png',{type:'image/png'});if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:car.name,text:'Sodangi Motors'});}}, 'image/png');
         toast('Status Image Saved! 🎉');
     };
     img.src = imgSrc;
