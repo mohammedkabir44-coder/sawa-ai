@@ -1,4 +1,4 @@
-﻿
+
 import json, hmac, hashlib, base64, time, os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -736,11 +736,11 @@ def owner_auto_login():
 
 </script>"""
     html = DASHBOARD_HTML.replace("</body>", force_js + "</body>")
-    return HTMLResponse(content=html, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
+    return HTMLResponse(content=html)
 
 @router.get("/ui", response_class=HTMLResponse)
 def dashboard_ui():
-    return HTMLResponse(content=DASHBOARD_HTML, headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache", "Expires": "0"})
+    return HTMLResponse(content=DASHBOARD_HTML)
 
 
 # ---- STORAGE TRUTH SERUM ----
