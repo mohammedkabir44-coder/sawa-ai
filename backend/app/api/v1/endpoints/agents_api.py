@@ -740,69 +740,7 @@ def owner_auto_login():
 
 @router.get("/ui")
 def dashboard_ui():
-    from fastapi.responses import Response
-    # BYPASS: Send raw HTML directly to the browser. No headers, no Starlette crashes!
-    return Response(content=DASHBOARD_HTML, media_type="text/html")
-
-
-def _heal_agent_schema():
-    try:
-        from app.core.database import engine
-        from sqlalchemy import text as _sa_text
-        stmts = [
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS bio TEXT",
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS photo_url TEXT",
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
-        ]
-        with engine.begin() as c:
-            for s in stmts:
-                c.execute(_sa_text(s))
-        print("AGENT SCHEMA HEALED")
-    except Exception as e:
-        print("AGENT SCHEMA HEAL FAILED:", repr(e))
-
-
-def _heal_images_column():
-    try:
-        from app.core.database import engine
-        from sqlalchemy import text as _sa_text, inspect as _sa_inspect
-        tname = Product.__table__.name
-        cname = Product.images.name if hasattr(Product, "images") else "images"
-        insp = _sa_inspect(engine)
-        cur = ""
-        for c in insp.get_columns(tname):
-            if c["name"] == cname:
-                cur = str(c["type"]).upper()
-        print("IMAGES COLUMN TYPE BEFORE HEAL:", cur)
-        if "TEXT" not in cur:
-            with engine.begin() as conn:
-                conn.execute(_sa_text("ALTER TABLE " + tname + " ALTER COLUMN " + cname + " TYPE TEXT"))
-            print("IMAGES COLUMN HEALED TO TEXT")
-        else:
-            print("IMAGES COLUMN ALREADY TEXT")
-    except Exception as e:
-        print("HEAL FAILED:", repr(e))
-
-
-
-def _heal_agent_schema():
-    try:
-        from app.core.database import engine
-        from sqlalchemy import text as _sa_text
-        stmts = [
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS phone_number VARCHAR",
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS bio TEXT",
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS photo_url TEXT",
-            "ALTER TABLE sodangi_agents ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
-        ]
-        with engine.begin() as c:
-            for s in stmts:
-                c.execute(_sa_text(s))
-        print("AGENT SCHEMA HEALED")
-    except Exception as e:
-        print("AGENT SCHEMA HEAL FAILED:", repr(e))
-
+    return {"status": "alive", "message": "JSON works! HTMLResponse is the ghost!"}
 
 
 @router.get("/debug-storage")
