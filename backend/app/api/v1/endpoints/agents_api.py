@@ -473,6 +473,85 @@ function switchToStatus(){
     } catch(e){ console.error(e); }
 }
 
+function generateStatusImage(idx) {
+    let car = window._statusCars[idx];
+    if(!car) { alert('Car not found'); return; }
+    fetch('/api/v1/dashboard/profile/me', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
+    .then(function(r){ return r.json(); })
+    .then(function(profile){
+        let phone = profile.phone || profile.phone_number || '08000000000';
+        let name = profile.full_name || 'Sodangi Motors';
+        drawCanvas(car, name, phone);
+    }).catch(function(){ drawCanvas(car, 'Sodangi Motors', '08000000000'); });
+}
+
+function drawCanvas(car, name, phone) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    let imgSrc = car.image_url || car.images || '';
+    if (imgSrc && imgSrc.startsWith('[')) { try { imgSrc = JSON.parse(imgSrc)[0]; } catch(e){ imgSrc=''; } }
+    if(Array.isArray(imgSrc)) imgSrc = imgSrc[0] || '';
+    if(!imgSrc) { alert('No image for this car'); return; }
+    
+    img.onload = function() {
+        canvas.width = 1080;
+        canvas.height = 1920;
+        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+        const x = (canvas.width / 2) - (img.width / 2) * scale;
+        const y = (canvas.height / 2) - (img.height / 2) * scale;
+        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+        
+        const gradient = ctx.createLinearGradient(0, canvas.height - 600, 0, canvas.height);
+        gradient.addColorStop(0, 'rgba(0,0,0,0)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, canvas.height - 600, canvas.width, 600);
+        
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 15;
+        
+        ctx.font = 'bold 70px sans-serif';
+        ctx.fillText(car.name, canvas.width / 2, canvas.height - 350);
+        
+        ctx.font = 'bold 100px sans-serif';
+        ctx.fillStyle = '#10B981';
+        ctx.fillText('\u20A6' + Number(car.price).toLocaleString(), canvas.width / 2, canvas.height - 220);
+        
+        ctx.font = 'bold 50px sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.fillText(name, canvas.width / 2, canvas.height - 110);
+        
+        ctx.font = 'bold 60px sans-serif';
+        ctx.fillStyle = '#FBBF24';
+        ctx.fillText('\ud83d\udcde ' + phone, canvas.width / 2, canvas.height - 40);
+        
+        const link = document.createElement('a');
+        link.download = car.name.replace(/\s+/g, '_') + '_Status.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        canvas.toBlob(function(blob) {
+            const file = new File([blob], car.name.replace(/\s+/g, '_') + '_Status.png', { type: 'image/png' });
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    files: [file],
+                    title: car.name,
+                    text: '\ud83d\ude97 ' + car.name + '\n\ud83d\udcb0 \u20A6' + Number(car.price).toLocaleString() + '\n\ud83d\udcde ' + phone + '\nSodangi Motors'
+                }).then(function(){}).catch(function(){});
+            } else {
+                alert('Image saved to gallery! Open your photos to share on WhatsApp/Facebook.');
+            }
+        }, 'image/png');
+    };
+    img.onerror = function() { alert('Error loading image.'); };
+    img.src = imgSrc;
+}
+
+
 </script>
 <style>
   :root { --bg: #0B0F19; --card: #151F38; --accent: #22C55E; --text: #F8FAFC; --muted: #94A3B8; }
