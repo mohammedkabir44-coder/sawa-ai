@@ -738,12 +738,12 @@ def owner_auto_login():
     html = DASHBOARD_HTML.replace("</body>", force_js + "</body>")
     return HTMLResponse(content=html)
 
-@router.get("/ui", response_class=HTMLResponse)
+@router.get("/ui")
 def dashboard_ui():
-    return HTMLResponse(content=DASHBOARD_HTML)
+    from fastapi.responses import Response
+    # BYPASS: Send raw HTML directly to the browser. No headers, no Starlette crashes!
+    return Response(content=DASHBOARD_HTML, media_type="text/html")
 
-
-# ---- STORAGE TRUTH SERUM ----
 
 def _heal_agent_schema():
     try:
