@@ -434,6 +434,72 @@ function drawCanvas(car, name, phone) {
     };
     img.src = imgSrc;
 }
+
+function switchToStatus(){
+    try{
+        // Highlight the status tab
+        document.querySelectorAll('nav button').forEach(function(b){
+            b.classList.remove('text-emerald-400');
+            b.classList.add('text-gray-400');
+        });
+        var st = document.getElementById('tab-status');
+        if(st){ st.classList.remove('text-gray-400'); st.classList.add('text-emerald-400'); }
+
+        // Hide all other content sections
+        var mainParent = null;
+        document.querySelectorAll('div[id$="-content"]').forEach(function(el){
+            el.style.display = 'none';
+            if(el.parentNode) mainParent = el.parentNode;
+        });
+
+        // Remove old status panel if exists
+        var old = document.getElementById('status-wrap');
+        if(old) old.remove();
+
+        // Create fresh status panel
+        var sc = document.createElement('div');
+        sc.id = 'status-wrap';
+        if(mainParent) mainParent.appendChild(sc);
+        else {
+            var nav = document.querySelector('nav');
+            if(nav && nav.parentNode) nav.parentNode.insertBefore(sc, nav);
+            else document.body.appendChild(sc);
+        }
+        sc.style.display = 'block';
+        sc.innerHTML = '<div class="p-4 text-center text-gray-400">Loading your inventory...</div>';
+
+        // Load cars
+        fetch('/api/v1/dashboard/products', { headers: { 'Authorization': 'Bearer ' + TOKEN } })
+        .then(function(r){ return r.json(); })
+        .then(function(cars){
+            var html = '<div class="p-4"><h2 class="text-2xl font-bold text-white mb-4">📢 WhatsApp Status Blaster</h2>';
+            if(!cars || cars.length === 0){
+                html += '<p class="text-gray-400">No cars found. Add a car first!</p>';
+            } else {
+                window._statusCars = cars;
+                cars.forEach(function(car, idx){
+                    var img = car.image_url || car.images || '';
+                    if(img && img.startsWith('[')){ try{ img = JSON.parse(img)[0]; }catch(e){ img = ''; } }
+                    if(Array.isArray(img)) img = img[0] || '';
+                    html += '<div class="bg-gray-800 rounded-xl p-4 mb-4 shadow-lg">';
+                    html += '<img src="' + img + '" class="w-full h-40 object-cover rounded-lg mb-3">';
+                    html += '<h3 class="text-lg font-bold text-white">' + car.name + '</h3>';
+                    html += '<p class="text-emerald-400 font-bold mb-3">₦' + Number(car.price).toLocaleString() + '</p>';
+                    html += '<button onclick="generateStatusImage(' + idx + ')" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700">Generate Status Image</button>';
+                    html += '</div>';
+                });
+            }
+            html += '</div>';
+            sc.innerHTML = html;
+        })
+        .catch(function(e){
+            sc.innerHTML = '<div class="p-4 text-red-400">Error loading cars: ' + e + '</div>';
+        });
+    } catch(err){
+        alert('Status tab error: ' + err);
+    }
+}
+
 </script>
 <style>
   :root { --bg: #0B0F19; --card: #151F38; --accent: #22C55E; --text: #F8FAFC; --muted: #94A3B8; }
@@ -531,7 +597,7 @@ function drawCanvas(car, name, phone) {
   <button id="navAgents" onclick="go('Agents')" class="hidden"><span>T</span>Team</button>
   <button id="navStats" onclick="go('Stats')" class="hidden"><span>S</span>Stats</button>
   <button id="navProfile" onclick="go('Profile')"><span>P</span>Me</button>
-<button onclick="showTab('status')" id="tab-status" class="flex-1 text-center py-3 text-gray-400 hover:text-emerald-400 transition-colors"><div class="text-2xl">📢</div><div class="text-xs mt-1">Status</div></button>
+<button onclick="switchToStatus()" id="tab-status" class="flex-1 text-center py-3 text-gray-400 hover:text-emerald-400 transition-colors"><div class="text-2xl">📢</div><div class="text-xs mt-1">Status</div></button>
     </nav>
 <script>
 var API="/api/v1/dashboard";
