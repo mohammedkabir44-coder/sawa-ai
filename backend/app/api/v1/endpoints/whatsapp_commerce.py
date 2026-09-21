@@ -1,0 +1,541 @@
+import re
+import os
+"""WhatsApp Commerce Engine - simplified reliable build."""
+import hmac
+import hashlib
+import json
+import logging
+import os
+import urllib.request
+from typing import Any, Dict, List, Optional, Tuple
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.core.database import get_db
+from app.models.product import Product
+from app.models.whatsapp import WhatsAppAccount
+from app.services.ai.language import detect_language
+from app.services.ai.parser import parse_customer_intent
+
+router = APIRouter(prefix="/whatsapp-commerce", tags=["whatsapp-commerce"])
+
+import datetime
+
+def _track_session(db, customer_phone, agent_id):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sodangi_customer_sessions (
+                    customer_phone VARCHAR PRIMARY KEY,
+                    agent_id INTEGER,
+                    last_active VARCHAR
+                )
+            """))
+            conn.execute(text("""
+                INSERT INTO sodangi_customer_sessions (customer_phone, agent_id, last_active)
+                VALUES (:phone, :aid, :time)
+                ON CONFLICT(customer_phone) DO UPDATE SET agent_id = :aid, last_active = :time
+            """), {"phone": customer_phone, "aid": agent_id, "time": str(datetime.utcnow())})
+    except Exception as e:
+        print("SESSION TRACK ERROR:", e)
+
+def _get_session_agent(db, customer_phone):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT agent_id FROM sodangi_customer_sessions WHERE customer_phone = :phone"), {"phone": customer_phone}).fetchone()
+            return res[0] if res else None
+    except:
+        return None
+
+def _get_agent_phone(db, agent_id):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT phone_number FROM sodangi_agents WHERE id = :aid"), {"aid": agent_id}).fetchone()
+            return res[0] if res and res[0] else ""
+    except:
+        return ""
+
+def _get_agent_name(db, agent_id):
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("SELECT full_name FROM sodangi_agents WHERE id = :aid"), {"aid": agent_id}).fetchone()
+            return res[0] if res and res[0] else "our agent"
+    except:
+        return "our agent"
+
+
+logger = logging.getLogger(__name__)
+
+class ParseMessageRequest(BaseModel):
+    message: str
+
+WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "sawatoken123")
+WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
+
+
+
+def _direct_send_image(to_number: str, image_url: str, caption: str) -> Dict[str, Any]:
+    token = "EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD"
+    phone_id = "1332619033263966"
+    
+    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    low = image_url.lower().split("?")[0]
+    if low.endswith((".mp4", ".mov", ".webm", ".mkv", ".avi")) or "/video/" in low:
+        media = {"type": "video", "video": {"link": image_url, "caption": caption}}
+    else:
+        media = {"type": "image", "image": {"link": image_url, "caption": caption}}
+    payload = json.dumps(dict({"messaging_product": "whatsapp", "to": to_number}, **media)).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _call_openai_brain(user_msg: str, catalog: list) -> str:
+    import os, json, urllib.request
+    api_key = "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".strip()
+    if not api_key: return ""
+
+    system_prompt = f"""You are the sales brain of Sodangi Motors Nigeria. Reply in the customer's language (Hausa or English).
+    Inventory: {json.dumps(catalog, default=str)}
+    Rules: 1) Understand ANY message instantly - cars, prices, greetings, questions. 2) If a product matches, mention its EXACT name and price enthusiastically. 3) Maximum 2 sentences. 4) If greeting only, ask what car they want and suggest 2-3 options from inventory. 5) Never say you are an AI."""
+
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_msg}
+        ],
+        "temperature": 0.5
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request("https://api.groq.com/openai/v1/chat/completions", data=data, method="POST")
+    req.add_header("Authorization", f"Bearer {api_key}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
+
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            return result["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"OpenAI Error: {e}")
+        return ""
+
+def _direct_send_document(to_number: str, file_url: str, caption: str) -> Dict[str, Any]:
+    token = ""
+    phone_id = "1332619033263966"
+    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    payload = json.dumps({
+        "messaging_product": "whatsapp",
+        "to": to_number,
+        "type": "document",
+        "document": {"link": file_url, "caption": caption, "filename": "sodangi-video.mp4"},
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+def _direct_send(to_number: str, text: str) -> Dict[str, Any]:
+    """Send a WhatsApp text using the PROVEN env credentials."""
+    token = "EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD"
+    phone_id = "1332619033263966"
+    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    payload = json.dumps({
+        "messaging_product": "whatsapp",
+        "to": to_number,
+        "type": "text",
+        "text": {"body": text},
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "SodangiBot/1.0")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _resolve_business_id(db: Session, msg: Dict[str, Any], value: Dict[str, Any]) -> Optional[int]:
+    to_number = msg.get("to", "")
+    if to_number:
+        account = db.scalar(select(WhatsAppAccount).where(WhatsAppAccount.phone_number == to_number))
+        if account is not None:
+            return account.business_id
+    metadata = value.get("metadata", {})
+    phone_number_id = metadata.get("phone_number_id", "")
+    if phone_number_id:
+        account = db.scalar(select(WhatsAppAccount).where(WhatsAppAccount.phone_number_id == phone_number_id))
+        if account is not None:
+            return account.business_id
+    return None
+
+
+def _extract_img(imgs):
+    import json, ast
+    if not imgs: return ""
+    if isinstance(imgs, list): return str(imgs[0]) if imgs else ""
+    if isinstance(imgs, str):
+        try: return json.loads(imgs)[0]
+        except: pass
+        try: return ast.literal_eval(imgs)[0]
+        except: pass
+    return str(imgs)
+
+def _extract_imgs(imgs):
+    import json, ast
+    if not imgs:
+        return []
+    if isinstance(imgs, list):
+        return [str(x) for x in imgs]
+    if isinstance(imgs, str):
+        try:
+            v = json.loads(imgs)
+            if isinstance(v, list):
+                return [str(x) for x in v]
+        except Exception:
+            pass
+        try:
+            v = ast.literal_eval(imgs)
+            if isinstance(v, list):
+                return [str(x) for x in v]
+        except Exception:
+            pass
+        return [imgs]
+    return []
+
+def _is_video(url):
+    low = str(url).lower().split("?")[0]
+    return low.endswith((".mp4", ".mov", ".webm", ".mkv", ".avi")) or "/video/" in low
+
+def _get_product_catalog(db: Session, business_id: int) -> List[Dict[str, Any]]:
+    products = db.query(Product).filter(Product.business_id == business_id, Product.is_active.is_(True)).all()
+    out = []
+    for p in products:
+        urls = _extract_imgs(p.images)
+        out.append({"id": p.id, "name": p.name, "price": p.price, "stock_quantity": p.stock, "image_url": urls[0] if urls else "", "image_urls": urls})
+    return out
+
+
+def _smart_reply(text_body: str, catalog: List[Dict[str, Any]]) -> str:
+    """Fast, deterministic Hausa/English responder (never hangs)."""
+    low = text_body.lower()
+    for p in catalog:
+        name = str(p["name"]).lower()
+        if name in low or name.split()[0] in low:
+            return (f"Sannu! {p['name']} yana nan. Farashi: {p['price']:,.2f}. "
+                    f"Adadi a kaya: {p['stock_quantity']}. Za ka so ka yi oda?")
+    if catalog:
+        names = ", ".join(str(p["name"]) for p in catalog[:6])
+        return f"Sannu! Ga kayayyakinmu: {names}. Wanne kake son sani?"
+    return "Sannu! Na karbi sakonka. Za a amsa maka nan take."
+
+
+
+def _match_product(catalog, reply, text_body):
+    hay = (str(reply) + " " + str(text_body)).lower()
+    valid_catalog = [p for p in catalog if p.get("image_urls")]
+    for p in valid_catalog:
+        words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
+        if words and sum(1 for w in words if w in hay) >= len(words):
+            return p
+    for p in valid_catalog:
+        words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
+        if words and sum(1 for w in words if w in hay) >= max(1, len(words) - 1):
+            return p
+    for p in valid_catalog:
+        words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
+        if any(w in hay for w in words):
+            return p
+    return None
+
+
+
+
+def _fast_intent(text_body, catalog):
+    low = str(text_body).lower()
+    greetings = ["sannu", "barka", "hello", "hey", "good morning", "good afternoon", "good evening", "salam", "ina kwana", "hi"]
+    is_greeting = any(g in low for g in greetings)
+    best = None
+    best_score = 0
+    for p in catalog:
+        words = [w for w in str(p["name"]).lower().split() if len(w) > 3]
+        score = sum(1 for w in words if w in low)
+        if score > best_score:
+            best_score = score
+            best = p
+    price_kw = ["price", "farashi", "how much", "nawa", "cost", "kudi"]
+    if best:
+        if any(k in low for k in price_kw):
+            return "Farashin " + str(best["name"]) + " shine ₦" + format(float(best["price"] or 0), ",.0f") + " kawai! Yana nan a stock yanzu. Ga hotuna a kasa!"
+        return "Sannu! " + str(best["name"]) + " yana nan a showroom! Farashi: ₦" + format(float(best["price"] or 0), ",.0f") + ". Adadi: " + str(best["stock_quantity"]) + ". Ga hotuna a kasa!"
+    if is_greeting:
+        names = ", ".join(str(p["name"]) for p in catalog[:4]) if catalog else ""
+        return "Sannu! Barka da zuwa Sodangi Motors! 🚗 Menene kake nema? Muna da: " + names + ". Rubuta sunan motar don ganin hotuna!"
+    if catalog:
+        names = ", ".join(str(p["name"]) + " (₦" + format(float(p["price"] or 0), ",.0f") + ")" for p in catalog[:6])
+        return "Sannu! Ga kayayyakinmu na yau: " + names + ". Rubuta sunan motar don ganin hotuna da bidiyo!"
+    return "Sannu! Na karbi sakonka. Showroom yana shiryawa - sake gwadawa nan kadan!"
+
+async def _process_text_message(db: Session, msg: Dict[str, Any], value: Dict[str, Any]) -> Dict[str, Any]:
+    from_number = msg.get("from", "")
+    text_body = msg.get("text", {}).get("body", "")
+    business_id = 3
+    catalog = _get_product_catalog(db, business_id)
+    m_ad = re.search(r"ad:(\d+)", text_body.lower())
+    active_agent_id = None
+    if m_ad:
+        active_agent_id = int(m_ad.group(1))
+        _track_session(db, from_number, active_agent_id)
+    else:
+        active_agent_id = _get_session_agent(db, from_number)
+
+    if active_agent_id:
+        try:
+            from app.api.v1.endpoints import agents_api as _agad
+            agx = db.query(_agad.Agent).filter(_agad.Agent.id == active_agent_id, _agad.Agent.is_active.is_(True)).first()
+            if agx:
+                pids_ad = set(mm.product_id for mm in db.query(_agad.ProductAgent).filter(_agad.ProductAgent.agent_id == active_agent_id).all())
+                if pids_ad:
+                    filtered = [pc for pc in catalog if pc["id"] in pids_ad]
+                    if filtered:
+                        catalog = filtered
+        except Exception as ad_exc:
+            print("AD FILTER ERROR:", repr(ad_exc))
+    reply = _fast_intent(text_body, catalog)
+    # CTA INJECTION FOR INTENT
+    low_text = text_body.lower()
+    strong_buy = any(k in low_text for k in ["buy", "purchase", "pay", "account", "bank", "ready", "take", "deal", "call", "office", "come", "saya", "saye", "biya", "kudi", "banki", "lama", "tamba", "ni son saya", "zan dauka", "yaya zan biya"])
+    if strong_buy and active_agent_id:
+        agent_phone = _get_agent_phone(db, active_agent_id)
+        agent_name = _get_agent_name(db, active_agent_id)
+        if agent_phone:
+            cta = f"\n\n📞 *Ready to buy?* Contact your dedicated agent {agent_name} directly at: *{agent_phone}*"
+            reply += cta
+
+    photos = []
+    videos = []
+    sent_images = 0
+    sent_video = False
+    try:
+        ai_catalog = [{"id": p["id"], "name": p["name"], "price": p["price"], "stock_quantity": p["stock_quantity"]} for p in catalog]
+        ai_reply = _call_openai_brain(text_body, ai_catalog)
+        if ai_reply:
+            reply = ai_reply
+        prod = _match_product(catalog, reply, text_body)
+        if prod:
+            media = prod.get("image_urls") or []
+            videos = [u for u in media if _is_video(u)]
+            photos = [u for u in media if not _is_video(u)]
+            low = text_body.lower()
+            wants_video = any(k in low for k in ["video", "bidiyo", "vidio", "clip", "footage", "fim"])
+            if wants_video:
+                if videos:
+                    try:
+                        _direct_send_image(from_number, videos[0], reply)
+                        sent_video = True
+                        try:
+                            from app.api.v1.endpoints import agents_api as _aglog2
+                            if prod.get("agent_id"):
+                                _aglog2.log_event(db, prod["agent_id"], "video_sent", from_number, prod["name"])
+                        except Exception:
+                            pass
+                    except Exception:
+                        try:
+                            _direct_send_document(from_number, videos[0], reply)
+                            sent_video = True
+                        except Exception:
+                            _direct_send(from_number, reply + " Ga bidiyo: " + videos[0])
+                else:
+                    _direct_send(from_number, reply + " (Bidiyo ba ya samuwa a yanzu.)")
+            else:
+                if photos:
+                    for i, u in enumerate(photos[:8]):
+                        cap = reply if i == 0 else ""
+                        _direct_send_image(from_number, u, cap)
+                        sent_images += 1
+                    if sent_images and prod.get("agent_id"):
+                        try:
+                            from app.api.v1.endpoints import agents_api as _aglog
+                            _aglog.log_event(db, prod["agent_id"], "photo_burst", from_number, prod["name"])
+                        except Exception:
+                            pass
+                else:
+                    _direct_send(from_number, reply)
+        else:
+            _direct_send(from_number, reply)
+            if (sent_images or sent_video) and active_agent_id:
+                agent_phone = _get_agent_phone(db, active_agent_id)
+                agent_name = _get_agent_name(db, active_agent_id)
+                if agent_phone:
+                    cta = f"📞 *Ready to buy or need more info?* Contact your dedicated agent {agent_name} directly at: *{agent_phone}*"
+                    try:
+                        _direct_send(from_number, cta)
+                    except Exception:
+                        pass
+
+        first_url = videos[0]
+        return {"status": "SENT", "reply": reply, "extracted_url": first_url, "images_sent": sent_images, "video_sent": sent_video, "video_url": (videos[0] if videos else "")}
+    except Exception as exc:
+        meta_body = ""
+        if hasattr(exc, "read"):
+            try:
+                meta_body = exc.read().decode("utf-8")
+            except Exception:
+                meta_body = ""
+        return {"status": "SEND_FAILED", "reply": reply, "extracted_url": "", "images_sent": sent_images, "video_sent": sent_video, "error": str(exc), "meta_response": meta_body}
+
+
+@router.get("/webhook", response_class=PlainTextResponse)
+async def verify_webhook(
+    hub_mode: str = Query(..., alias="hub.mode"),
+    hub_verify_token: str = Query(..., alias="hub.verify_token"),
+    hub_challenge: str = Query(..., alias="hub.challenge")
+) -> str:
+    if hub_mode == "subscribe" and hub_verify_token == WHATSAPP_VERIFY_TOKEN:
+                  return hub_challenge
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+
+@router.post("/parse")
+async def parse_message(payload: ParseMessageRequest) -> Dict[str, Any]:
+    try:
+        return parse_customer_intent(payload.message, [])
+    except Exception as e:
+        return {"intent": "error", "reply_message": _smart_reply(payload.message, []), "error": str(e)}
+
+
+@router.post("/debug-inbound")
+async def debug_inbound(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    msg = payload.get("msg", {})
+    value = payload.get("value", {})
+    return await _process_text_message(db, msg, value)
+
+
+@router.get("/send-test")
+async def send_test():
+    try:
+        result = _direct_send("2348142969979", "Sannu! Wannan gwaji ne daga Vercel backend.")
+        return {"status": "SUCCESS", "environment": getattr(settings, "ENVIRONMENT", "MISSING"), "meta": result}
+    except Exception as e:
+        return {"status": "FAILED", "error": str(e), "environment": getattr(settings, "ENVIRONMENT", "MISSING")}
+
+
+
+def _transcribe(audio_bytes):
+    try:
+        import httpx
+        files = {
+            "file": ("voice.ogg", audio_bytes, "audio/ogg"),
+            "model": (None, "whisper-large-v3-turbo")
+        }
+        headers = {
+            "Authorization": "Bearer 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"
+        }
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                files=files,
+                headers=headers
+            )
+            if resp.status_code == 200:
+                return resp.json().get("text", "")
+            print(f"WHISPER ERROR {resp.status_code}: {resp.text[:100]}")
+            return ""
+    except Exception as e:
+        print("TRANSCRIBE EXCEPTION:", repr(e))
+        return ""
+
+async def _voice_reply(db, to_number, text):
+    return # SILENCED BY BOSS
+async def _process_voice_message(db, msg, value):
+    from_number = msg.get("from", "")
+    media_id = (msg.get("voice") or msg.get("audio") or {}).get("id", "")
+    if not media_id:
+        return {"status": "NO_MEDIA"}
+    token = "EAIc43UbYWT4BSSQma6EGkEvRBjuMxHgNvNTTHsCVZC140gA1OVyEde4Br8kIZCmQJti1gaRVtA68yQxLVJZCPISMhkiUBgXZBB2IIUUvfwDtemQOZB9PEwegMYizE9L5tiVwhuFug0rqLdUd5MwOwrt4N3k1EawDq2b84ZBYDy67tcfmUIMbaJKrzn12ZC0f392SQZDZD"
+    req = urllib.request.Request("https://graph.facebook.com/v25.0/" + media_id)
+    req.add_header("Authorization", "Bearer " + token)
+    with urllib.request.urlopen(req, timeout=15) as r:
+        meta = json.loads(r.read().decode("utf-8"))
+    file_url = meta.get("url", "")
+    if not file_url:
+        return {"status": "NO_URL"}
+    req2 = urllib.request.Request(file_url)
+    req2.add_header("Authorization", "Bearer " + token)
+    with urllib.request.urlopen(req2, timeout=30) as r2:
+        audio_bytes = r2.read()
+    text = _transcribe(audio_bytes)
+    if not text:
+        _direct_send(from_number, "🎧 Na karbi sakon muryarka amma ban gane shi ba. Rubuta rubutu ko sake magana.")
+        return {"status": "TRANSCRIBE_FAILED"}
+    _direct_send(from_number, "🎧 Na gane sakonka: \"" + text + "\"")
+    fake = {"from": from_number, "type": "text", "text": {"body": text}}
+    result = await _process_text_message(db, fake, value)
+    try:
+        await _voice_reply(db, from_number, str(result.get("reply", "")), _detect_lang(str(result.get("reply", ""))))
+    except Exception as ve:
+        print("VOICE REPLY FAILED:", repr(ve))
+    return result
+
+@router.post("/webhook")
+async def receive_webhook(request: Request, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    body_bytes = await request.body()
+    signature_header = request.headers.get("X-Hub-Signature-256", "")
+    if WHATSAPP_APP_SECRET:
+        if not signature_header:
+            raise HTTPException(status_code=403, detail="Missing signature")
+        expected_sig = hmac.new(WHATSAPP_APP_SECRET.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest()
+        incoming_sig = signature_header.split("=")[1] if "=" in signature_header else ""
+        if not hmac.compare_digest(expected_sig, incoming_sig):
+            raise HTTPException(status_code=403, detail="Invalid signature")
+    try:
+        payload = json.loads(body_bytes)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+
+    for entry in payload.get("entry", []):
+        for change in entry.get("changes", []):
+            value = change.get("value", {})
+            for msg in value.get("messages", []):
+                if msg.get("type") == "text":
+                    try:
+                        await _process_text_message(db, msg, value)
+                    except Exception:
+                        logger.exception("Failed to process message")
+                elif msg.get("type") in ("voice", "audio"):
+                    try:
+                        await _process_voice_message(db, msg, value)
+                    except Exception:
+                        logger.exception("Failed to process voice message")
+    return {"status": "success"}
+
+@router.get("/check-env")
+async def check_env():
+    t = "os.getenv("WHATSAPP_TOKEN")"
+    p = "1332619033263966"
+    return {
+        "token_found": t != "NOT_FOUND",
+        "token_length": len(t),
+        "token_preview": t[:15] + "..." if t != "NOT_FOUND" else "N/A",
+        "phone_id": p
+    }
+

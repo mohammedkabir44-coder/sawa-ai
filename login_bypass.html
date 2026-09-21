@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Auto-Login</title>
+    <style>
+        body { font-family: sans-serif; background: #0B0F19; color: white; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .card { background: #151F38; padding: 30px; border-radius: 16px; text-align: center; max-width: 400px; }
+        .btn { background: #22C55E; color: #052E16; padding: 14px 28px; border: none; border-radius: 10px; font-weight: 700; font-size: 16px; cursor: pointer; margin-top: 20px; text-decoration: none; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>?? Auto-Login Ready</h2>
+        <p>Click the button below to log in as Owner instantly!</p>
+        <button class="btn" onclick="login()">Enter Dashboard</button>
+    </div>
+    <script>
+        function login() {
+            localStorage.setItem('sodangi_token', 'eyJlIjogIm93bmVyQHNvZGFuZ2kuY29tIiwgInIiOiAib3duZXIiLCAidCI6IDIxMDUyNDc1NTN9.82ecf3cd79e72fcf2f59e4ec25798ff46b2f4476b0c4a6191b399ca205df7a02');
+            localStorage.setItem('sodangi_role', 'owner');
+            localStorage.setItem('sodangi_name', 'Mohammed Kabir');
+            window.location.href = '/api/v1/dashboard/ui';
+        }
+    </script>
+</body>
+</html>

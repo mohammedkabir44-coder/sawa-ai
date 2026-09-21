@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAWA AI Commerce Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .whatsapp-green { color: #25D366; }
+        .bg-whatsapp { background-color: #25D366; }
+        .whatsapp-bg-light { background-color: #E5DDD5; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white shadow-md p-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <i class="fab fa-whatsapp text-4xl whatsapp-green"></i>
+            <h1 class="text-2xl font-bold">SAWA AI Commerce</h1>
+        </div>
+        <div id="auth-section" class="flex items-center space-x-2">
+            <input type="email" id="email" placeholder="Email" class="border p-2 rounded w-48">
+            <input type="password" id="password" placeholder="Password" class="border p-2 rounded w-48">
+            <button onclick="register()" class="bg-blue-500 text-white px-4 py-2 rounded font-bold hover:bg-blue-600 transition">Register</button>
+            <button onclick="login()" class="bg-whatsapp text-white px-4 py-2 rounded font-bold hover:opacity-90 transition">Login</button>
+        </div>
+        <div id="user-section" class="hidden items-center space-x-4">
+            <span class="font-bold"><i class="fas fa-user-circle mr-2"></i> Admin</span>
+            <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded font-bold hover:bg-red-600 transition">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left Column: AI Playground -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center">
+                <i class="fas fa-robot mr-2 whatsapp-green"></i> AI Intent Parser Playground
+            </h2>
+            <p class="text-gray-500 text-sm mb-4">Type a customer message and watch your AI extract commerce intent.</p>
+            
+            <div class="whatsapp-bg-light p-4 rounded-lg mb-4 h-80 overflow-y-auto" id="chat-box">
+                <div class="flex justify-end mb-2">
+                    <div class="bg-green-100 p-3 rounded-lg max-w-xs shadow">
+                        <p class="text-sm">Hi! I want to order 2 large pepperoni pizzas and a coke.</p>
+                    </div>
+                </div>
+                <!-- AI Response will go here -->
+                <div id="ai-response" class="flex justify-start mb-2 hidden">
+                    <div class="bg-white p-3 rounded-lg max-w-sm shadow border border-gray-200">
+                        <p class="text-xs font-bold text-gray-500 mb-1">🤖 SAWA AI</p>
+                        <pre id="ai-json" class="text-xs text-gray-800 whitespace-pre-wrap"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex space-x-2">
+                <input type="text" id="message-input" class="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Type a message (e.g., 'I need 3 blue shirts')...">
+                <button onclick="testAI()" class="bg-whatsapp text-white px-6 py-2 rounded-full font-bold hover:opacity-90 transition">
+                    <i class="fas fa-paper-plane mr-2"></i> Parse Intent
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Column: Analytics & Products -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-bold mb-4">Business Analytics</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span class="text-sm font-medium">Total Customers</span>
+                        <span id="stat-customers" class="text-2xl font-bold whatsapp-green">-</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span class="text-sm font-medium">Total Leads</span>
+                        <span id="stat-leads" class="text-2xl font-bold text-blue-600">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-bold mb-4">Product Catalog</h2>
+                <div id="product-list" class="space-y-2 max-h-64 overflow-y-auto">
+                    <p class="text-gray-400 text-sm">Login to see your products...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        let token = localStorage.getItem("access_token");
+
+        // Check if user is already logged in
+        window.onload = () => {
+            if (token) {
+                showDashboard();
+            }
+        };
+
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            if (!email || !password) { alert("Please enter email and password"); return; }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password, name: "Admin User" })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert("✅ Account created! Now click Login.");
+                } else {
+                    alert("❌ Registration Failed!\nBackend says: " + JSON.stringify(data));
+                }
+            } catch (error) { alert("Network Error: Is the server running?"); }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        username: email,
+                        password: password
+                    })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    token = data.access_token;
+                    localStorage.setItem("access_token", token);
+                    showDashboard();
+                } else {
+                    alert("❌ Login Failed!\nBackend says: " + JSON.stringify(data));
+                }
+            } catch (error) { alert("Network Error: Is the server running?"); }
+        }
+
+        function logout() {
+            localStorage.removeItem("access_token");
+            token = null;
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('user-section').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('user-section').classList.remove('hidden');
+            loadDashboardData();
+        }
+
+        async function loadDashboardData() {
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // Fetch Analytics Summary
+            try {
+                const res = await fetch(`${API_URL}/api/v1/analytics/summary`, { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('stat-customers').innerText = data.customers_count || 0;
+                    document.getElementById('stat-leads').innerText = data.leads_count || 0;
+                }
+            } catch (e) { console.error("Analytics error:", e); }
+
+            // Fetch Products
+            try {
+                const res = await fetch(`${API_URL}/api/v1/products/`, { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    const list = document.getElementById('product-list');
+                    list.innerHTML = '';
+                    if (data.length === 0) {
+                        list.innerHTML = '<p class="text-gray-400 text-sm">No products yet.</p>';
+                    } else {
+                        data.forEach(p => {
+                            list.innerHTML += `<div class="flex justify-between p-2 bg-gray-50 rounded"><span>${p.name}</span><span class="font-bold">$${p.price}</span></div>`;
+                        });
+                    }
+                }
+            } catch (e) { console.error("Products error:", e); }
+        }
+
+        async function testAI() {
+            const input = document.getElementById('message-input');
+            const messageText = input.value;
+            if (!messageText) return;
+
+            const chatBox = document.getElementById('chat-box');
+            const aiResponse = document.getElementById('ai-response');
+            const aiJson = document.getElementById('ai-json');
+
+            // Add user message to chat
+            const userMsg = document.createElement('div');
+            userMsg.className = "flex justify-end mb-2";
+            userMsg.innerHTML = `<div class="bg-green-100 p-3 rounded-lg max-w-xs shadow"><p class="text-sm">${messageText}</p></div>`;
+            chatBox.appendChild(userMsg);
+            
+            input.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            aiResponse.classList.remove('hidden');
+            aiJson.innerText = "⏳ AI is thinking...";
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/whatsapp-commerce/parse`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ message: messageText })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    aiJson.innerText = JSON.stringify(data, null, 2);
+                } else {
+                    aiJson.innerText = `⚠️ Error: Check your login status.`;
+                }
+            } catch (error) {
+                aiJson.innerText = `❌ Network Error: Is the backend running?`;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>

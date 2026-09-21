@@ -1,0 +1,15 @@
+﻿__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+env/
+.env
+.vercel/
+*.db
+*.sqlite3
+node_modules/
+*.log
+.env.local
+.env.local
+vercel.json
