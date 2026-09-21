@@ -279,3 +279,8 @@ def import_test():
 # FORCE_REBUILD_1790026984
 # GALLERY_BUILD_1790030488
 # BOT_BUILD_1790030903
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/v1/dashboard/ui")

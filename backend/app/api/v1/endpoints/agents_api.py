@@ -1134,6 +1134,14 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   <div style="font-size:13px;color:#E0F2FE;margin-top:4px" id="who"></div>
 </header>
 <div class="container">
+    <section id="publicHome">
+    <div style="text-align:center;padding:26px 10px 10px">
+      <div style="font-size:26px;font-weight:800;letter-spacing:1px">SODANGI MOTORS</div>
+      <div style="color:#94A3B8;font-size:13px;margin-top:6px">Nigeria&#39;s trusted vehicle marketplace. Buy verified cars directly from verified agents.</div>
+    </div>
+    <div id="publicCars" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 4px"></div>
+    <div style="text-align:center;color:#64748B;font-size:12px;padding-bottom:8px">Are you an agent? Sign in below to manage your showroom.</div>
+  </section>
   <section id="authCard">
     <div class="card">
       <h2>Agent Portal</h2>
@@ -1234,7 +1242,7 @@ function go(tab){
   if(tab==="Cars")loadCars();if(tab==="Agents")loadAgents();if(tab==="Profile")loadProfile();if(tab==="Stats")loadStats();if(tab==="Leads")loadLeads();if(tab==="Leaderboard")loadLeaderboard();if(tab==="Bot")loadBot();
 }
 function enterDash(){
-  document.getElementById("authCard").classList.add("hidden");
+  document.getElementById("authCard").classList.add("hidden");var ph=document.getElementById("publicHome");if(ph)ph.style.display="none";
   document.getElementById("mainHeader").classList.remove("hidden");
   document.getElementById("bottomNav").classList.remove("hidden");
   document.getElementById("who").textContent=NAME+" ("+ROLE+")";
@@ -1313,7 +1321,7 @@ async function loadLeads(){var box=document.getElementById("leadsList");try{var 
 async function addLead(){var n=document.getElementById("leadName").value;var p=document.getElementById("leadPhone").value.replace(/\s+/g,"");if(!n||!p){alert("Fill name and phone!");return;}var t=document.getElementById("leadType")?document.getElementById("leadType").value:"whatsapp";try{await api("/leads/add","POST",{name:n,phone:p,contact_type:t},true);alert("Lead saved!");document.getElementById("leadName").value="";document.getElementById("leadPhone").value="";loadLeads();}catch(e){alert(e.message);}}
 async function loadAgents(){try{var as=await api("/agents","GET",null,true);var box=document.getElementById("agentsList");box.innerHTML="";as.forEach(function(a){var d=document.createElement("div");d.className="item";d.innerHTML='<div class="item-info"><h3>'+a.full_name+'</h3><p>'+a.email+'</p></div>';box.appendChild(d);});}catch(e){}}
 async function createAgent(){try{var r=await api("/agents/create","POST",{full_name:document.getElementById("aName").value,email:document.getElementById("aEmail").value,password:document.getElementById("aPass").value,phone:document.getElementById("aPhone").value},true);alert("Agent created!");loadAgents();}catch(e){alert(e.message);}}
-async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;}catch(e){}}
+async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;var sid=me.page.split("/").pop();SHOWROOM_URL=location.origin+"/api/v1/dashboard/ad/"+sid;var sec=document.getElementById("tabProfile");var old=document.getElementById("showroomBox");if(old)old.remove();var d=document.createElement("div");d.id="showroomBox";d.style.marginTop="12px";d.innerHTML='<a href="'+SHOWROOM_URL+'" target="_blank" class="btn btn-primary" style="display:block;text-decoration:none;text-align:center">Open My Showroom</a><button class="btn btn-ghost" onclick="copyShowroom()">Copy Showroom Link</button><a class="btn btn-primary" style="display:block;text-decoration:none;text-align:center;background:#25D366;color:#000" href="https://wa.me/?text='+encodeURIComponent("Check out my showroom at Sodangi Motors: "+SHOWROOM_URL)+'" target="_blank">Share Showroom on WhatsApp</a>';var btns=sec.querySelectorAll("button");if(btns.length){btns[0].insertAdjacentElement("afterend",d);}else{sec.appendChild(d);}}catch(e){}}
 async function saveProfile(){try{await api("/profile/update","POST",{phone:document.getElementById("mPhone").value,bio:document.getElementById("mBio").value},true);alert("Profile saved!");}catch(e){alert(e.message);}}
 async function loadStats(){var box=document.getElementById("statsBox");try{var a=await api("/analytics","GET",null,true);var h="<h3 style='color:#7DD3FC'>Team Activity</h3>";a.agents.forEach(function(g){h+='<div class="item"><div class="item-info"><h3>'+g.name+'</h3><p>Leads: '+g.ad_lead+'</p></div></div>';});box.innerHTML=h;}catch(e){box.innerHTML='<p style="color:#EF4444">'+e.message+'</p>';}}
 async function loadBot(){var box=document.getElementById("botStatus");try{var s=await api("/ai-bot/status","GET",null,true);box.innerHTML='<p style="color:'+(s.enabled?"#22C55E":"#EF4444")+';font-weight:700">Bot is '+(s.enabled?"ON - replying to buyers 24/7":"OFF")+'</p>';}catch(e){box.innerHTML='<p style="color:#EF4444">'+e.message+'</p>';}}
@@ -1321,7 +1329,10 @@ async function toggleBot(){try{var s=await api("/ai-bot/toggle","POST",{},true);
 window.addEventListener("error",function(ev){try{toast("App glitch caught: "+(ev.message||"unknown"),"#EF4444");}catch(e){}});
 window.addEventListener("offline",function(){try{toast("You are OFFLINE - reconnect to continue.","#EF4444");}catch(e){}});
 window.addEventListener("online",function(){try{toast("Back online!","#16A34A");}catch(e){}});
-if(TOKEN){enterDash();}
+var SHOWROOM_URL="";
+function copyShowroom(){if(SHOWROOM_URL){navigator.clipboard.writeText(SHOWROOM_URL);toast("Showroom link copied!");}}
+async function loadPublicShowroom(){var box=document.getElementById("publicCars");if(!box)return;try{var r=await fetch(API+"/products");var cars=await r.json();if(!cars||!cars.length){box.innerHTML='<p style="color:#94A3B8;grid-column:1/-1;text-align:center">Showroom opening soon - check back!</p>';return;}var h="";cars.slice(0,8).forEach(function(c){var img="";if(c.images&&c.images.length>0){img=Array.isArray(c.images)?c.images[0]:c.images;}else if(c.image_url){img=c.image_url;}h+='<a href="'+location.origin+'/api/v1/dashboard/car/'+c.id+'" style="text-decoration:none"><div class="card" style="margin:0;padding:10px">'+(img?'<img src="'+img+'" loading="lazy" style="width:100%;height:110px;object-fit:cover;border-radius:10px">':'')+'<div style="font-size:13px;font-weight:700;margin-top:6px;color:#F8FAFC">'+c.name+'</div><div style="color:#10B981;font-weight:800;font-size:13px">&#8358;'+Number(c.price).toLocaleString()+'</div></div></a>';});box.innerHTML=h;}catch(e){box.innerHTML='<p style="color:#94A3B8;grid-column:1/-1;text-align:center">Welcome! Sign in to explore.</p>';}}
+if(TOKEN){enterDash();}else{loadPublicShowroom();}
 </script>
 </body>
 </html>"""
