@@ -1119,6 +1119,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   .item { background: #0F172A; border: 1px solid #1E293B; border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
   .item-info h3 { font-size: 15px; margin-bottom: 4px; }
   .item-info p { font-size: 13px; color: var(--muted); }
+  .gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 10px; padding: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .gallery::-webkit-scrollbar { display: none; }
+  .gallery img { scroll-snap-align: center; flex-shrink: 0; width: 90%; height: 220px; object-fit: cover; border-radius: 14px; border: 2px solid #1E293B; }
   #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #16A34A; color: #fff; padding: 12px 24px; border-radius: 10px; font-weight: 600; display: none; z-index: 999; }
   #authCard { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; }
   #authCard .card { width: 100%; max-width: 400px; }
@@ -1274,9 +1277,9 @@ async function loadCars(){
     window.CARS=CARS;
     CARS.forEach(function(c,idx){
       var d=document.createElement("div");d.className="item";d.style.flexDirection="column";
-      var img=(c.images&&c.images.length>0)?c.images[0]:"";
+      var imgs=(c.images&&c.images.length>0)?c.images:[];
       var h='<div class="item-info"><h3>'+c.name+'</h3><p>&#8358;'+Number(c.price).toLocaleString()+'</p></div>';
-      if(img)h+='<img src="'+img+'" style="width:100%;height:150px;object-fit:cover;border-radius:12px;margin:8px 0">';
+      if(imgs.length>0){h+='<div class="gallery" style="margin:10px 0">';imgs.forEach(function(url){h+='<img src="'+url+'" loading="lazy">';});h+='</div>';}
       h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
       h+='<button class="btn btn-primary" style="flex:1;padding:10px;margin:0;background:#3B82F6;color:#fff;font-size:12px" onclick="openShareModal('+idx+')">Share</button>';
       h+='<button class="btn btn-primary" style="flex:1;padding:10px;margin:0;background:#25D366;color:#000;font-size:12px" onclick="openBroadcastModal('+idx+')">Broadcast</button>';
