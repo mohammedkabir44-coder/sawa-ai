@@ -1223,7 +1223,7 @@ var TOKEN=localStorage.getItem("sodangi_token")||"";
 var ROLE=localStorage.getItem("sodangi_role")||"";
 var NAME=localStorage.getItem("sodangi_name")||"";
 function toast(m,c){var t=document.getElementById("toast");t.textContent=m;t.style.background=c||"#16A34A";t.style.display="block";setTimeout(function(){t.style.display="none";},3000);}
-async function api(p,m,b,a){var h={"Content-Type":"application/json"};if(a)h["Authorization"]="Bearer "+TOKEN;var r=await fetch(API+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
+async function api(p,m,b,a,attempt){attempt=attempt||0;var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},20000);var h={"Content-Type":"application/json"};if(a)h["Authorization"]="Bearer "+TOKEN;try{var r=await fetch(API+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined,signal:ctrl.signal});clearTimeout(timer);if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return await r.json();}catch(err){clearTimeout(timer);var msg=err.message||"";var net=(err.name==="AbortError")||msg.indexOf("Failed to fetch")>-1||msg.indexOf("Network")>-1;if(net&&attempt<2){await new Promise(function(res){setTimeout(res,1200*(attempt+1));});return api(p,m,b,a,attempt+1);}throw new Error(net?"Network slow or offline - retrying failed. Please try again.":err.message);}}
 function go(tab){
   ["Upload","Cars","Agents","Stats","Profile","Leads","Leaderboard","SMS","Bot"].forEach(function(t){
     var el=document.getElementById("tab"+t);if(el)el.classList.add("hidden");
@@ -1318,6 +1318,9 @@ async function saveProfile(){try{await api("/profile/update","POST",{phone:docum
 async function loadStats(){var box=document.getElementById("statsBox");try{var a=await api("/analytics","GET",null,true);var h="<h3 style='color:#7DD3FC'>Team Activity</h3>";a.agents.forEach(function(g){h+='<div class="item"><div class="item-info"><h3>'+g.name+'</h3><p>Leads: '+g.ad_lead+'</p></div></div>';});box.innerHTML=h;}catch(e){box.innerHTML='<p style="color:#EF4444">'+e.message+'</p>';}}
 async function loadBot(){var box=document.getElementById("botStatus");try{var s=await api("/ai-bot/status","GET",null,true);box.innerHTML='<p style="color:'+(s.enabled?"#22C55E":"#EF4444")+';font-weight:700">Bot is '+(s.enabled?"ON - replying to buyers 24/7":"OFF")+'</p>';}catch(e){box.innerHTML='<p style="color:#EF4444">'+e.message+'</p>';}}
 async function toggleBot(){try{var s=await api("/ai-bot/toggle","POST",{},true);alert("Bot is now "+(s.enabled?"ON":"OFF"));loadBot();}catch(e){alert(e.message);}}
+window.addEventListener("error",function(ev){try{toast("App glitch caught: "+(ev.message||"unknown"),"#EF4444");}catch(e){}});
+window.addEventListener("offline",function(){try{toast("You are OFFLINE - reconnect to continue.","#EF4444");}catch(e){}});
+window.addEventListener("online",function(){try{toast("Back online!","#16A34A");}catch(e){}});
 if(TOKEN){enterDash();}
 </script>
 </body>
@@ -2990,3 +2993,21 @@ def ai_bot_toggle(request: Request, db: Session = Depends(get_db)):
         db.add(Setting(key="ai_bot_enabled", value=new_val))
     db.commit()
     return {"enabled": new_val == "on"}
+
+
+_BOOT_TIME = __import__("time").time()
+
+@router.get("/health")
+def deep_health(db: Session = Depends(get_db)):
+    import time as _t
+    from sqlalchemy import text as _sa_text
+    report = {"status": "ok", "uptime_seconds": int(_t.time() - _BOOT_TIME)}
+    try:
+        t0 = _t.time()
+        db.execute(_sa_text("SELECT 1"))
+        report["database"] = "ok"
+        report["db_latency_ms"] = int((_t.time() - t0) * 1000)
+    except Exception as e:
+        report["status"] = "degraded"
+        report["database"] = "error: " + str(e)[:120]
+    return report

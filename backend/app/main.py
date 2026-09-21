@@ -1,4 +1,4 @@
-﻿# REBUILD_TRIGGER: 2026-09-20-03-28-25
+# REBUILD_TRIGGER: 2026-09-20-03-28-25
 
 from sqlalchemy.orm import Session
 from fastapi import Depends
@@ -51,6 +51,26 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def anti_crash_middleware(request, call_next):
+    import time as _t, logging, traceback
+    from fastapi.responses import JSONResponse
+    t0 = _t.time()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logging.getLogger("sawa").error("HANDLED CRASH %s %s: %s", request.method, request.url.path, traceback.format_exc())
+        return JSONResponse(status_code=500, content={"detail": "Handled safely: " + str(exc)[:200]})
+    ms = int((_t.time() - t0) * 1000)
+    try:
+        response.headers["X-Response-Ms"] = str(ms)
+    except Exception:
+        pass
+    if ms > 4000:
+        logging.getLogger("sawa").warning("SLOW REQUEST %s %s took %sms", request.method, request.url.path, ms)
+    return response
+
 
 # CORS: locked down to the configured origins (no wildcard in production).
 app.add_middleware(
