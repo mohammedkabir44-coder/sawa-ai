@@ -1196,6 +1196,17 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <button class="btn btn-danger" onclick="logout()" style="margin-top:10px">Sign Out</button>
   </section>
 </div>
+  <section id="tabBot" class="card hidden">
+    <h2>&#129302; AI Auto-Responder</h2>
+    <p style="color:#94A3B8;font-size:13px;margin-bottom:12px">24/7 WhatsApp bot that replies to buyers with your live inventory.</p>
+    <div id="botStatus" style="margin-bottom:12px"></div>
+    <button class="btn btn-primary" onclick="toggleBot()">Toggle Bot On/Off</button>
+    <hr style="margin:16px 0;border-color:#334155">
+    <label>Meta Callback URL (copy into Meta dashboard):</label>
+    <input readonly value="https://sawa-ai-backend.vercel.app/api/v1/dashboard/whatsapp-webhook" onclick="this.select()">
+    <label>Verify Token:</label>
+    <input readonly value="sodangi_verify_2026" onclick="this.select()">
+  </section>
 <nav class="nav hidden" id="bottomNav">
   <button id="navUpload" onclick="go('Upload')"><span>+</span>Add</button>
   <button id="navCars" onclick="go('Cars')"><span>C</span>Cars</button>
@@ -1203,6 +1214,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   <button id="navStats" onclick="go('Stats')" class="hidden"><span>S</span>Stats</button>
   <button id="navLeaderboard" onclick="go('Leaderboard')"><span>&#127942;</span>Board</button>
   <button id="navLeads" onclick="go('Leads')"><span>&#128101;</span>Leads</button>
+  <button id="navBot" onclick="go('Bot')"><span>&#129302;</span>Bot</button>
   <button id="navProfile" onclick="go('Profile')"><span>P</span>Me</button>
 </nav>
 <script>
@@ -1213,13 +1225,13 @@ var NAME=localStorage.getItem("sodangi_name")||"";
 function toast(m,c){var t=document.getElementById("toast");t.textContent=m;t.style.background=c||"#16A34A";t.style.display="block";setTimeout(function(){t.style.display="none";},3000);}
 async function api(p,m,b,a){var h={"Content-Type":"application/json"};if(a)h["Authorization"]="Bearer "+TOKEN;var r=await fetch(API+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});if(!r.ok){var e={};try{e=await r.json();}catch(x){}throw new Error(e.detail||("HTTP "+r.status));}return r.json();}
 function go(tab){
-  ["Upload","Cars","Agents","Stats","Profile","Leads","Leaderboard","SMS"].forEach(function(t){
+  ["Upload","Cars","Agents","Stats","Profile","Leads","Leaderboard","SMS","Bot"].forEach(function(t){
     var el=document.getElementById("tab"+t);if(el)el.classList.add("hidden");
     var nb=document.getElementById("nav"+t);if(nb)nb.classList.remove("active");
   });
   var el=document.getElementById("tab"+tab);if(el)el.classList.remove("hidden");
   var nb=document.getElementById("nav"+tab);if(nb)nb.classList.add("active");
-  if(tab==="Cars")loadCars();if(tab==="Agents")loadAgents();if(tab==="Profile")loadProfile();if(tab==="Stats")loadStats();if(tab==="Leads")loadLeads();if(tab==="Leaderboard")loadLeaderboard();
+  if(tab==="Cars")loadCars();if(tab==="Agents")loadAgents();if(tab==="Profile")loadProfile();if(tab==="Stats")loadStats();if(tab==="Leads")loadLeads();if(tab==="Leaderboard")loadLeaderboard();if(tab==="Bot")loadBot();
 }
 function enterDash(){
   document.getElementById("authCard").classList.add("hidden");
@@ -1304,6 +1316,8 @@ async function createAgent(){try{var r=await api("/agents/create","POST",{full_n
 async function loadProfile(){try{var me=await api("/profile/me","GET",null,true);document.getElementById("mPhone").value=me.phone;document.getElementById("mBio").value=me.bio;}catch(e){}}
 async function saveProfile(){try{await api("/profile/update","POST",{phone:document.getElementById("mPhone").value,bio:document.getElementById("mBio").value},true);alert("Profile saved!");}catch(e){alert(e.message);}}
 async function loadStats(){var box=document.getElementById("statsBox");try{var a=await api("/analytics","GET",null,true);var h="<h3 style='color:#7DD3FC'>Team Activity</h3>";a.agents.forEach(function(g){h+='<div class="item"><div class="item-info"><h3>'+g.name+'</h3><p>Leads: '+g.ad_lead+'</p></div></div>';});box.innerHTML=h;}catch(e){box.innerHTML='<p style="color:#EF4444">'+e.message+'</p>';}}
+async function loadBot(){var box=document.getElementById("botStatus");try{var s=await api("/ai-bot/status","GET",null,true);box.innerHTML='<p style="color:'+(s.enabled?"#22C55E":"#EF4444")+';font-weight:700">Bot is '+(s.enabled?"ON - replying to buyers 24/7":"OFF")+'</p>';}catch(e){box.innerHTML='<p style="color:#EF4444">'+e.message+'</p>';}}
+async function toggleBot(){try{var s=await api("/ai-bot/toggle","POST",{},true);alert("Bot is now "+(s.enabled?"ON":"OFF"));loadBot();}catch(e){alert(e.message);}}
 if(TOKEN){enterDash();}
 </script>
 </body>
@@ -2879,3 +2893,100 @@ def force_reset_owner(db: Session = Depends(get_db)):
         return {"status": "FAILED", "error": str(e), "trace": traceback.format_exc()}
 
 
+
+
+# ============ AI AUTO-RESPONDER (WhatsApp 24/7 Bot) ============
+WA_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "1332619033263966")
+WA_VERIFY_TOKEN = os.getenv("WA_VERIFY_TOKEN", "sodangi_verify_2026")
+
+def _wa_send(to_phone, message):
+    token = os.getenv("WHATSAPP_TOKEN", "")
+    if not token:
+        return False
+    url = "https://graph.facebook.com/v25.0/" + WA_PHONE_ID + "/messages"
+    data = json.dumps({"messaging_product": "whatsapp", "to": to_phone, "type": "text", "text": {"preview_url": False, "body": message}}).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Authorization", "Bearer " + token)
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+def _wa_bot_reply(text, db):
+    prods = db.query(Product).filter(Product.is_active.is_(True)).order_by(Product.id.desc()).limit(6).all()
+    car_words = ["car", "price", "show", "buy", "available", "list", "suv", "camry", "lexus", "toyota", "benz"]
+    if any(k in text for k in car_words):
+        if not prods:
+            return "Salam! Sodangi Motors here. No cars in stock right now, please check back soon!"
+        lines = ["Salam! Welcome to Sodangi Motors.", "Available vehicles today:", ""]
+        for p in prods:
+            lines.append("* " + str(p.name) + " - NGN " + format(float(p.price or 0), ",.0f"))
+        lines.append("")
+        lines.append("Reply with the car name for photos, or WhatsApp us to book a test drive!")
+        return "\n".join(lines)
+    if any(k in text for k in ["hello", "hi", "salam", "good day"]):
+        return "Salam! Welcome to Sodangi Motors. Reply 'cars' to see today's available vehicles with prices."
+    return "Salam! Sodangi Motors here. Reply 'cars' to see available vehicles with prices, or tell us what you need (e.g. 'SUV under 5 million')."
+
+@router.get("/whatsapp-webhook")
+async def wa_webhook_verify(request: Request):
+    params = request.query_params
+    if params.get("hub.mode") == "subscribe" and params.get("hub.verify_token") == WA_VERIFY_TOKEN:
+        return Response(content=params.get("hub.challenge", ""), media_type="text/plain")
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+@router.post("/whatsapp-webhook")
+async def wa_webhook_receive(request: Request, db: Session = Depends(get_db)):
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"status": "ignored"}
+    try:
+        entries = payload.get("entry") or []
+        if not entries:
+            return {"status": "ok"}
+        changes = entries[0].get("changes") or []
+        if not changes:
+            return {"status": "ok"}
+        value = changes[0].get("value") or {}
+        messages = value.get("messages") or []
+        if not messages:
+            return {"status": "ok"}
+        msg = messages[0]
+        sender = msg.get("from", "")
+        body = ((msg.get("text") or {}).get("body") or "").lower()
+        if not sender:
+            return {"status": "ok"}
+        Setting.__table__.create(bind=db.get_bind(), checkfirst=True)
+        row = db.query(Setting).filter(Setting.key == "ai_bot_enabled").first()
+        if row and row.value == "off":
+            return {"status": "bot_off"}
+        reply = _wa_bot_reply(body, db)
+        _wa_send(sender, reply)
+        return {"status": "replied"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.get("/ai-bot/status")
+def ai_bot_status(request: Request, db: Session = Depends(get_db)):
+    _auth(request)
+    Setting.__table__.create(bind=db.get_bind(), checkfirst=True)
+    row = db.query(Setting).filter(Setting.key == "ai_bot_enabled").first()
+    enabled = (row.value != "off") if row else True
+    return {"enabled": enabled, "callback_url": "https://sawa-ai-backend.vercel.app/api/v1/dashboard/whatsapp-webhook", "verify_token": WA_VERIFY_TOKEN}
+
+@router.post("/ai-bot/toggle")
+def ai_bot_toggle(request: Request, db: Session = Depends(get_db)):
+    _owner(_auth(request))
+    Setting.__table__.create(bind=db.get_bind(), checkfirst=True)
+    row = db.query(Setting).filter(Setting.key == "ai_bot_enabled").first()
+    current = (row.value != "off") if row else True
+    new_val = "off" if current else "on"
+    if row:
+        row.value = new_val
+    else:
+        db.add(Setting(key="ai_bot_enabled", value=new_val))
+    db.commit()
+    return {"enabled": new_val == "on"}
