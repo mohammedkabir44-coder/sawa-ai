@@ -280,7 +280,12 @@ def import_test():
 # GALLERY_BUILD_1790030488
 # BOT_BUILD_1790030903
 
+
+
 @app.get("/", include_in_schema=False)
-async def root_redirect():
+async def root_redirect(request: Request):
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/api/v1/dashboard/ui")
+    url = "/api/v1/dashboard/ui"
+    if request.query_params:
+        url += "?" + str(request.query_params)
+    return RedirectResponse(url=url)

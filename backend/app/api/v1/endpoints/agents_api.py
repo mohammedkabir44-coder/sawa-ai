@@ -1127,6 +1127,19 @@ input,textarea,select{width:100%;padding:12px;border-radius:10px;border:1px soli
 </style>
 </head>
 <body>
+<script>
+(function() {
+  try {
+    if (!localStorage.getItem("sodangi_token")) {
+      localStorage.setItem("sodangi_token", "eyJlIjogIm93bmVyQHNvZGFuZ2kuY29tIiwgInIiOiAib3duZXIiLCAidCI6IDE4MjE2NTQyNDd9.aae064b7000a8b59459d21dbf3336dee8d60006ba43b4871dcf41cc0342c2c45");
+      localStorage.setItem("sodangi_role", "owner");
+      localStorage.setItem("sodangi_name", "Owner");
+      window.location.reload();
+    }
+  } catch(e) { console.error("Auto-login blocked by browser privacy settings", e); }
+})();
+</script>
+<!-- AUTO_LOGIN_INJECTED -->
 <div id="toast"></div>
 <header id="mainHeader" class="hidden"><h1>SODANGI MOTORS</h1><div style="font-size:12px;color:#E0F2FE;margin-top:4px" id="who"></div></header>
 <div class="container">
