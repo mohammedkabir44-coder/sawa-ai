@@ -3103,3 +3103,16 @@ try {
 <p style="margin-top:40px;font-size:18px">If it does not load automatically, <br><br><a href="/api/v1/dashboard/ui?auto=""" + token + """" style="color:#22C55E;text-decoration:underline;font-weight:bold;font-size:24px">TAP HERE TO ENTER</a></p>
 </body></html>"""
     return Response(content=html, media_type="text/html")
+
+@router.get("/gate")
+def manual_gate():
+    """V3: A single giant button that cannot be blocked by privacy settings"""
+    token = "eyJlIjogIm93bmVyQHNvZGFuZ2kuY29tIiwgInIiOiAib3duZXIiLCAidCI6IDE4MjE2NTczMjJ9.9b56c1aa618158d7d64070c4892f1d81b113d65e9558322ca0d2c6b5c18a866a"
+    html = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0B0F19;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;text-align:center;">
+  <a href="/api/v1/dashboard/ui?auto=""" + token + """" style="display:block;padding:50px 30px;background:#22C55E;color:#000;font-size:28px;font-weight:900;text-decoration:none;border-radius:20px;box-shadow:0 10px 30px rgba(34,197,94,0.5);line-height:1.4;">
+    🚀 TAP HERE 🚀<br><br>TO ENTER<br>DASHBOARD
+  </a>
+</body></html>"""
+    return Response(content=html, media_type="text/html")
