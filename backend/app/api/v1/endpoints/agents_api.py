@@ -1142,17 +1142,29 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <div id="publicCars" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 4px"></div>
     <div style="text-align:center;color:#64748B;font-size:12px;padding-bottom:8px">Are you an agent? Sign in below to manage your showroom.</div>
   </section>
-  <section id="authCard">
+    <section id="authCard">
     <div class="card">
-      <h2>Agent Portal</h2>
-      <label>Email</label><input id="liEmail" type="email" placeholder="agent@sodangi.com">
-      <label>Password</label><input id="liPass" type="password" placeholder="********">
-      <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
-      <hr style="margin:16px 0;border-color:#334155">
-      <label>New Agent Name</label><input id="regName" placeholder="Your full name">
-      <label>Email</label><input id="regEmail" type="email" placeholder="your@email.com">
-      <label>Password</label><input id="regPass" type="password" placeholder="Create password">
-      <button class="btn btn-ghost" onclick="registerAgent()">Register as Agent</button>
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:22px;font-weight:800;letter-spacing:1px">SODANGI MOTORS</div>
+        <div style="color:#94A3B8;font-size:12px;margin-top:4px">Owner & Agent Portal</div>
+      </div>
+      <div id="googleBtnWrap" style="display:flex;justify-content:center;margin-bottom:12px"><div id="googleBtn"></div></div>
+      <div id="authDivider" style="text-align:center;color:#64748B;font-size:12px;margin-bottom:12px">or continue with email</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button id="tabLoginBtn" class="btn btn-primary" style="margin:0" onclick="showAuth('login')">Sign In</button>
+        <button id="tabSignupBtn" class="btn btn-ghost" style="margin:0" onclick="showAuth('signup')">Sign Up</button>
+      </div>
+      <div id="loginPane">
+        <label>Email</label><input id="liEmail" type="email" placeholder="you@email.com">
+        <label>Password</label><input id="liPass" type="password" placeholder="********">
+        <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+      </div>
+      <div id="signupPane" class="hidden">
+        <label>Full Name</label><input id="regName" placeholder="Your full name">
+        <label>Email</label><input id="regEmail" type="email" placeholder="you@email.com">
+        <label>Create Password</label><input id="regPass" type="password" placeholder="Min 6 characters">
+        <button class="btn btn-primary" onclick="registerAgent()">Create My Account</button>
+      </div>
     </div>
   </section>
   <section id="tabUpload" class="card hidden">
@@ -3070,3 +3082,36 @@ def public_car_page(product_id: int, db: Session = Depends(get_db)):
     html = html + '<p style="color:#64748B;font-size:12px;text-align:center;margin-top:14px">Sodangi Motors - Trusted Vehicle Marketplace</p>'
     html = html + '</div></div></body></html>'
     return Response(content=html, media_type="text/html")
+
+
+@router.get("/social-config")
+def social_config():
+    return {"google_client_id": os.getenv("GOOGLE_CLIENT_ID", "")}
+
+@router.post("/social-login")
+def social_login(payload: dict, db: Session = Depends(get_db)):
+    import urllib.request as _ur
+    cid = os.getenv("GOOGLE_CLIENT_ID", "")
+    cred = payload.get("credential", "")
+    if not cid or not cred:
+        raise HTTPException(status_code=400, detail="Google sign-in not configured yet")
+    try:
+        with _ur.urlopen("https://oauth2.googleapis.com/tokeninfo?id_token=" + cred, timeout=10) as resp:
+            info = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+    if info.get("aud") != cid:
+        raise HTTPException(status_code=401, detail="Google token audience mismatch")
+    email = (info.get("email") or "").lower()
+    gname = info.get("name") or email.split("@")[0]
+    if not email:
+        raise HTTPException(status_code=401, detail="No email in Google token")
+    Agent.__table__.create(bind=db.get_bind(), checkfirst=True)
+    a = db.query(Agent).filter(Agent.email == email).first()
+    if not a:
+        role = "owner" if db.query(Agent).count() == 0 else "agent"
+        a = Agent(full_name=gname, email=email, password_hash=_hash_pw(os.urandom(8).hex()), role=role, is_active=True)
+        db.add(a)
+        db.commit()
+        db.refresh(a)
+    return {"status": "success", "token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name}
