@@ -3076,3 +3076,30 @@ window.location.href="/api/v1/dashboard/ui";
 </div>
 </body></html>"""
     return Response(content=html, media_type="text/html")
+
+
+@router.get("/instant-owner-v2")
+def instant_owner_dashboard_v2():
+    token = "eyJlIjogIm93bmVyQHNvZGFuZ2kuY29tIiwgInIiOiAib3duZXIiLCAidCI6IDE4MjE2NTY1ODh9.ebd3ec63c8127bae6a87e20e1c96fd2274c14bc1b27e09d5f68be938b30111bd"
+    html = """<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Redirecting...</title>
+<meta http-equiv="refresh" content="2;url=/api/v1/dashboard/ui?auto=""" + token + """">
+</head>
+<body style="margin:0;padding:0;background:#0B0F19;color:#fff;text-align:center;padding:60px;font-family:sans-serif">
+<h2>Loading your dashboard...</h2>
+<p>Please wait 2 seconds...</p>
+<script>
+try {
+  localStorage.setItem("sodangi_token","""" + token + """");
+  localStorage.setItem("sodangi_role","owner");
+  localStorage.setItem("sodangi_name","Mohammed Kabir");
+  window.location.replace("/api/v1/dashboard/ui");
+} catch(e) {
+  window.location.href="/api/v1/dashboard/ui?auto=""" + token + """";
+}
+</script>
+<p style="margin-top:40px;font-size:18px">If it does not load automatically, <br><br><a href="/api/v1/dashboard/ui?auto=""" + token + """" style="color:#22C55E;text-decoration:underline;font-weight:bold;font-size:24px">TAP HERE TO ENTER</a></p>
+</body></html>"""
+    return Response(content=html, media_type="text/html")
