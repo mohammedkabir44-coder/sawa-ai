@@ -1164,6 +1164,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <label>Email</label><input id="regEmail" type="email" placeholder="you@email.com">
         <label>Create Password</label><input id="regPass" type="password" placeholder="Min 6 characters">
         <button class="btn btn-primary" onclick="registerAgent()">Create My Account</button>
+      <hr style="margin:16px 0;border-color:#334155">
+      <button class="btn btn-ghost" style="background:#B45309;color:#fff;margin-top:4px" onclick="emergencyLogin()">🔑 Owner Quick Login</button>
       </div>
     </div>
   </section>
@@ -1344,6 +1346,25 @@ window.addEventListener("online",function(){try{toast("Back online!","#16A34A");
 var SHOWROOM_URL="";
 function copyShowroom(){if(SHOWROOM_URL){navigator.clipboard.writeText(SHOWROOM_URL);toast("Showroom link copied!");}}
 async function loadPublicShowroom(){var box=document.getElementById("publicCars");if(!box)return;try{var r=await fetch(API+"/products");var cars=await r.json();if(!cars||!cars.length){box.innerHTML='<p style="color:#94A3B8;grid-column:1/-1;text-align:center">Showroom opening soon - check back!</p>';return;}var h="";cars.slice(0,8).forEach(function(c){var img="";if(c.images&&c.images.length>0){img=Array.isArray(c.images)?c.images[0]:c.images;}else if(c.image_url){img=c.image_url;}h+='<a href="'+location.origin+'/api/v1/dashboard/car/'+c.id+'" style="text-decoration:none"><div class="card" style="margin:0;padding:10px">'+(img?'<img src="'+img+'" loading="lazy" style="width:100%;height:110px;object-fit:cover;border-radius:10px">':'')+'<div style="font-size:13px;font-weight:700;margin-top:6px;color:#F8FAFC">'+c.name+'</div><div style="color:#10B981;font-weight:800;font-size:13px">&#8358;'+Number(c.price).toLocaleString()+'</div></div></a>';});box.innerHTML=h;}catch(e){box.innerHTML='<p style="color:#94A3B8;grid-column:1/-1;text-align:center">Welcome! Sign in to explore.</p>';}}
+
+async function emergencyLogin(){
+  var pw = prompt("Enter Owner Master Password:");
+  if(!pw) return;
+  try {
+    var r = await fetch(API+"/emergency-login", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({master_password:pw})});
+    var d = await r.json();
+    if(d.token){
+      localStorage.setItem("sodangi_token", d.token);
+      localStorage.setItem("sodangi_role", d.role);
+      localStorage.setItem("sodangi_name", d.full_name);
+      alert("Welcome back, " + d.full_name + "!");
+      location.reload();
+    } else {
+      alert("Failed: " + (d.detail || "Unknown error"));
+    }
+  } catch(e) { alert("Network error: " + e.message); }
+}
+
 if(TOKEN){enterDash();}else{loadPublicShowroom();}
 </script>
 <script>
@@ -1389,6 +1410,25 @@ async function loadPublicShowroom(){var box=document.getElementById("publicCars"
 function generateStatusImage(idx){var car=(window.CARS||[])[idx];if(!car)return;toast("Generating watermark...");api("/profile/me","GET",null,true).then(function(p){drawCanvas(car,p.full_name||"Sodangi Motors",p.phone||"08000000000");}).catch(function(){drawCanvas(car,"Sodangi Motors","08000000000");});}
 function drawCanvas(car,name,phone){var canvas=document.createElement("canvas");var ctx=canvas.getContext("2d");var img=new Image();img.crossOrigin="anonymous";var src="";if(car.images&&car.images.length>0){src=car.images[0];}if(!src){toast("No image found.");return;}img.onload=function(){canvas.width=1080;canvas.height=1920;var scale=Math.max(canvas.width/img.width,canvas.height/img.height);var x=(canvas.width-img.width*scale)/2;var y=(canvas.height-img.height*scale)/2;ctx.drawImage(img,x,y,img.width*scale,img.height*scale);var g=ctx.createLinearGradient(0,canvas.height-600,0,canvas.height);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,0.95)");ctx.fillStyle=g;ctx.fillRect(0,canvas.height-600,canvas.width,600);ctx.textAlign="center";ctx.fillStyle="#fff";ctx.font="bold 70px sans-serif";ctx.fillText(car.name,canvas.width/2,canvas.height-350);ctx.fillStyle="#10B981";ctx.font="bold 100px sans-serif";ctx.fillText("\u20A6"+Number(car.price).toLocaleString(),canvas.width/2,canvas.height-220);ctx.fillStyle="#fff";ctx.font="bold 50px sans-serif";ctx.fillText(name,canvas.width/2,canvas.height-110);ctx.fillStyle="#FBBF24";ctx.font="bold 60px sans-serif";ctx.fillText(phone,canvas.width/2,canvas.height-40);try{var a=document.createElement("a");a.download=car.name.replace(/\s+/g,"_")+"_Status.png";a.href=canvas.toDataURL("image/png");a.click();toast("Status saved!");}catch(e){canvas.toBlob(function(b){window.open(URL.createObjectURL(b),"_blank");});}};img.onerror=function(){toast("Error loading image.");};img.src=src;}
 document.addEventListener("click",function(ev){var t=ev.target;var el=t.closest?t.closest("[data-act]"):null;if(!el)return;var act=el.getAttribute("data-act");if(act==="delcar"){ev.preventDefault();delCar(parseInt(el.getAttribute("data-pid"),10));}});
+
+async function emergencyLogin(){
+  var pw = prompt("Enter Owner Master Password:");
+  if(!pw) return;
+  try {
+    var r = await fetch(API+"/emergency-login", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({master_password:pw})});
+    var d = await r.json();
+    if(d.token){
+      localStorage.setItem("sodangi_token", d.token);
+      localStorage.setItem("sodangi_role", d.role);
+      localStorage.setItem("sodangi_name", d.full_name);
+      alert("Welcome back, " + d.full_name + "!");
+      location.reload();
+    } else {
+      alert("Failed: " + (d.detail || "Unknown error"));
+    }
+  } catch(e) { alert("Network error: " + e.message); }
+}
+
 if(TOKEN){enterDash();}else{loadPublicShowroom();initSocial();}
 
 </script>
@@ -3161,3 +3201,14 @@ def social_login(payload: dict, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(a)
     return {"status": "success", "token": _make_token(a.email, a.role), "role": a.role, "full_name": a.full_name}
+
+
+@router.post("/emergency-login")
+def emergency_login(payload: dict, db: Session = Depends(get_db)):
+    master_pw = payload.get("master_password", "")
+    if master_pw != "Sodangi2026!":
+        raise HTTPException(status_code=401, detail="Wrong master password")
+    owner = db.query(Agent).filter(Agent.role == "owner").first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="No owner found in database")
+    return {"status": "success", "token": _make_token(owner.email, owner.role), "role": owner.role, "full_name": owner.full_name}
