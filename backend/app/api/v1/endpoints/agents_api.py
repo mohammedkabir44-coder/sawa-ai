@@ -3055,3 +3055,24 @@ def emergency_login(payload: dict, db: Session = Depends(get_db)):
     if not owner:
         raise HTTPException(status_code=404, detail="No owner found in database")
     return {"status": "success", "token": _make_token(owner.email, owner.role), "role": owner.role, "full_name": owner.full_name}
+
+
+@router.get("/instant-owner")
+def instant_owner_dashboard():
+    """Bypasses login entirely - serves dashboard with token pre-loaded"""
+    token = "eyJlIjogIm93bmVyQHNvZGFuZ2kuY29tIiwgInIiOiAib3duZXIiLCAidCI6IDE4MjE2NTYwMzh9.3ad592a65e148ee1fbf0c3dc281c0c2f280ab4ab54e127d58710002ea1950f82"
+    html = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Sodangi Motors - Owner Dashboard</title></head>
+<body style="margin:0;padding:0">
+<script>
+localStorage.setItem("sodangi_token","""" + token + """");
+localStorage.setItem("sodangi_role","owner");
+localStorage.setItem("sodangi_name","Mohammed Kabir");
+window.location.href="/api/v1/dashboard/ui";
+</script>
+<div style="background:#0B0F19;color:#fff;text-align:center;padding:60px;font-family:sans-serif">
+<h2>Loading your dashboard...</h2>
+<p>Please wait...</p>
+</div>
+</body></html>"""
+    return Response(content=html, media_type="text/html")
