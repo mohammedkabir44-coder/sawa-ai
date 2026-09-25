@@ -3382,39 +3382,14 @@ function logout(){
 
 
 
-@router.get("/bot-test")
-def bot_xray_test(phone: str = ""):
-    import os, traceback
-    out = {}
-    out["token_present"] = bool(os.getenv("WHATSAPP_TOKEN", ""))
-    out["phone_id"] = os.getenv("WHATSAPP_PHONE_ID", "1332619033263966")
-    if not phone:
-        out["status"] = "MISSING_PHONE"
-        return out
-    try:
-        ok = _wa_send(phone, "Sodangi Motors bot test: your AI agent is connected and working!")
-        out["status"] = "SUCCESS" if ok else "META_REJECTED"
-    except Exception as e:
-        out["status"] = "CRASH"
-        out["error"] = repr(e)[:300]
-    return out
 
-@router.get("/bot-doctor")
-def bot_doctor(phone: str = ""):
-    import os, json, urllib.request, urllib.error
-    tok = os.getenv("WHATSAPP_TOKEN")
-    if not tok: return {"status":"MISSING_TOKEN", "fix":"Add WHATSAPP_TOKEN to Vercel Env Vars"}
-    pid = os.getenv("WHATSAPP_PHONE_ID", "1332619033263966")
-    if not phone: return {"status":"NO_PHONE"}
-    
-    url = f"https://graph.facebook.com/v18.0/{pid}/messages"
-    data = json.dumps({"messaging_product":"whatsapp","to":phone,"type":"text","text":{"body":"Sodangi Bot Doctor Test V3"}}).encode()
-    req = urllib.request.Request(url, data=data, headers={"Authorization":f"Bearer {tok}","Content-Type":"application/json"}, method="POST")
-    
-    try:
-        with urllib.request.urlopen(req, timeout=8) as r:
-            return {"status":"SUCCESS", "meta_response":r.read().decode()}
-    except urllib.error.HTTPError as e:
-        return {"status":"META_REJECTED", "error_code":e.code, "error_body":e.read().decode()[:500]}
-    except Exception as e:
-        return {"status":"CRASH", "error":str(e)}
+
+@router.get("/env-check")
+def env_check():
+    import os
+    return {
+        "status": "ALIVE",
+        "has_whatsapp_token": bool(os.getenv("WHATSAPP_TOKEN")),
+        "has_phone_id": bool(os.getenv("WHATSAPP_PHONE_ID")),
+        "phone_id_value": os.getenv("WHATSAPP_PHONE_ID", "NOT SET")
+    }
