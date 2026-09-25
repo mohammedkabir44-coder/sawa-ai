@@ -530,7 +530,7 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)) -> Di
 
 @router.get("/check-env")
 async def check_env():
-    t = "os.getenv("WHATSAPP_TOKEN")"
+    t = os.getenv("WHATSAPP_TOKEN")
     p = "1332619033263966"
     return {
         "token_found": t != "NOT_FOUND",
