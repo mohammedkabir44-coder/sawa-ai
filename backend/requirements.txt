@@ -16,3 +16,6 @@ tenacity
 
 
 gTTS
+
+psycopg
+psycopg-binary
