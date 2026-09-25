@@ -3379,3 +3379,21 @@ function logout(){
 </body>
 </html>"""
     return Response(content=html, media_type="text/html")
+
+
+@router.get("/bot-test")
+def bot_xray_test(phone: str = ""):
+    """Diagnostic endpoint to force a test message and check the token"""
+    import os
+    token = os.getenv("WHATSAPP_TOKEN", "")
+    if not token:
+        return {"status": "MISSING_TOKEN", "detail": "WHATSAPP_TOKEN is not set in Vercel Environment Variables!"}
+    if not phone:
+        return {"status": "MISSING_PHONE", "detail": "Please provide a phone number."}
+    
+    # Force send using the existing _wa_send function
+    success = _wa_send(phone, "🤖 Hello from Sodangi Motors! Your AI bot is 100% connected, armed, and working perfectly!")
+    if success:
+        return {"status": "SUCCESS", "detail": f"Message successfully sent to {phone}! Check your WhatsApp."}
+    else:
+        return {"status": "META_REJECTED", "detail": "Token exists, but Meta rejected the send. Check if your number is registered in Meta or if the token has messages permission."}
