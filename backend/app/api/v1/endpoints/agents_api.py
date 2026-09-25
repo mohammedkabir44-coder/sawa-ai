@@ -2866,7 +2866,7 @@ def _wa_send(to_phone, message):
     req.add_header("Authorization", "Bearer " + token)
     req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:
             return resp.status == 200
     except Exception:
         return False
@@ -3381,19 +3381,20 @@ function logout(){
     return Response(content=html, media_type="text/html")
 
 
+
 @router.get("/bot-test")
 def bot_xray_test(phone: str = ""):
-    """Diagnostic endpoint to force a test message and check the token"""
-    import os
-    token = os.getenv("WHATSAPP_TOKEN", "")
-    if not token:
-        return {"status": "MISSING_TOKEN", "detail": "WHATSAPP_TOKEN is not set in Vercel Environment Variables!"}
+    import os, traceback
+    out = {}
+    out["token_present"] = bool(os.getenv("WHATSAPP_TOKEN", ""))
+    out["phone_id"] = os.getenv("WHATSAPP_PHONE_ID", "1332619033263966")
     if not phone:
-        return {"status": "MISSING_PHONE", "detail": "Please provide a phone number."}
-    
-    # Force send using the existing _wa_send function
-    success = _wa_send(phone, "🤖 Hello from Sodangi Motors! Your AI bot is 100% connected, armed, and working perfectly!")
-    if success:
-        return {"status": "SUCCESS", "detail": f"Message successfully sent to {phone}! Check your WhatsApp."}
-    else:
-        return {"status": "META_REJECTED", "detail": "Token exists, but Meta rejected the send. Check if your number is registered in Meta or if the token has messages permission."}
+        out["status"] = "MISSING_PHONE"
+        return out
+    try:
+        ok = _wa_send(phone, "Sodangi Motors bot test: your AI agent is connected and working!")
+        out["status"] = "SUCCESS" if ok else "META_REJECTED"
+    except Exception as e:
+        out["status"] = "CRASH"
+        out["error"] = repr(e)[:300]
+    return out
