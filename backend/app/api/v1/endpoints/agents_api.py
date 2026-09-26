@@ -3321,8 +3321,15 @@ input,textarea,select{width:100%;padding:12px;border-radius:10px;border:1px soli
     <h2>+ Add Vehicle</h2>
     <label>Vehicle Name</label><input id="pName" placeholder="Toyota Camry 2022">
     <label>Price (Naira)</label><input id="pPrice" type="number" placeholder="8500000">
-    <label>Description</label><textarea id="pDesc" rows="3" placeholder="Clean interior..."></textarea>
-    <button class="btn btn-primary" onclick="publishCar()">Publish Vehicle</button>
+    <label>Description</label><textarea id="pDesc" rows="3" placeholder="Clean interior, low mileage..."></textarea>
+    <label>Photos (up to 10)</label>
+    <input type="file" id="pPhotos" accept="image/*" multiple onchange="compressAndPreview()" style="padding:10px;background:#1E293B;border-radius:10px">
+    <div id="photoPreview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+    <div id="uploadStatus" style="font-size:12px;color:#7DD3FC;margin-top:6px"></div>
+    <label>Video (walk-around, optional)</label>
+    <input type="file" id="pVideo" accept="video/*" onchange="previewVideo()" style="padding:10px;background:#1E293B;border-radius:10px">
+    <div id="videoPreview" style="margin-top:10px"></div>
+    <button class="btn btn-primary" onclick="publishCar()" style="margin-top:16px">🚀 Publish Vehicle</button>
   </section>
   <section id="tabCars" class="card hidden">
     <h2>My Inventory</h2>
@@ -3383,16 +3390,113 @@ function go(tab){
   if(tab==="Agents")loadAgents();
 }
 
+
+var uploadedPhotos = [];
+var uploadedVideo = "";
+
+async function compressAndPreview(){
+  var files = document.getElementById("pPhotos").files;
+  var preview = document.getElementById("photoPreview");
+  var status = document.getElementById("uploadStatus");
+  preview.innerHTML = "";
+  uploadedPhotos = [];
+  
+  for(var i=0; i<files.length && i<10; i++){
+    var f = files[i];
+    status.textContent = "Compressing photo " + (i+1) + " of " + Math.min(files.length,10) + "...";
+    
+    // Compress image
+    var blob = await compressImg(f, 900);
+    status.textContent = "Uploading photo " + (i+1) + " (" + Math.round(blob.size/1024) + "KB)...";
+    
+    // Upload to server
+    try {
+      var fd = new FormData();
+      fd.append("file", blob, "photo" + i + ".jpg");
+      var r = await fetch(API + "/upload-media", {method:"POST", headers:{"Authorization":"Bearer "+TOKEN}, body:fd});
+      if(!r.ok) throw new Error("Upload failed");
+      var d = await r.json();
+      uploadedPhotos.push(d.url);
+      
+      // Show preview
+      var img = document.createElement("img");
+      img.src = d.url;
+      img.style.cssText = "width:70px;height:70px;object-fit:cover;border-radius:10px;border:2px solid #22C55E";
+      preview.appendChild(img);
+    } catch(e) {
+      status.textContent = "Failed to upload photo " + (i+1) + ": " + e.message;
+      return;
+    }
+  }
+  status.textContent = "✅ " + uploadedPhotos.length + " photos uploaded successfully!";
+}
+
+function compressImg(file, maxW){
+  return new Promise(function(res, rej){
+    var img = new Image();
+    var u = URL.createObjectURL(file);
+    img.onload = function(){
+      var w = img.width, h = img.height;
+      if(w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+      var c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(u);
+      c.toBlob(function(b){ b ? res(b) : rej(new Error("compress failed")); }, "image/jpeg", 0.72);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(u); rej(new Error("load failed")); };
+    img.src = u;
+  });
+}
+
+function previewVideo(){
+  var f = document.getElementById("pVideo").files[0];
+  var pv = document.getElementById("videoPreview");
+  pv.innerHTML = "";
+  uploadedVideo = "";
+  if(!f) return;
+  
+  if(f.size > 50*1024*1024){
+    pv.innerHTML = "<p style='color:#EF4444;font-size:12px'>Video too large (max 50MB). Please use a shorter clip.</p>";
+    return;
+  }
+  
+  pv.innerHTML = "<p style='color:#7DD3FC;font-size:12px'>Uploading video... (this may take 30 seconds)</p>";
+  var fd = new FormData();
+  fd.append("file", f, f.name);
+  fetch(API + "/upload-media", {method:"POST", headers:{"Authorization":"Bearer "+TOKEN}, body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      uploadedVideo = d.url;
+      pv.innerHTML = "<video src='" + d.url + "' controls style='width:100%;border-radius:12px;max-height:200px'></video><p style='color:#22C55E;font-size:12px;margin-top:4px'>✅ Video uploaded!</p>";
+    })
+    .catch(function(e){
+      pv.innerHTML = "<p style='color:#EF4444;font-size:12px'>Video upload failed: " + e.message + "</p>";
+    });
+}
+
 async function publishCar(){
   var n=document.getElementById("pName").value;
   var p=parseFloat(document.getElementById("pPrice").value);
   if(!n||isNaN(p)){alert("Please fill Name and Price!");return;}
+  if(uploadedPhotos.length===0){alert("Please upload at least 1 photo!");return;}
+  
+  var allMedia = uploadedPhotos.slice();
+  if(uploadedVideo) allMedia.push(uploadedVideo);
+  
   try{
-    await api("/products/upload","POST",{name:n,price:p,image_url:"[]",description:document.getElementById("pDesc").value,stock:1});
-    toast("Car published!");
+    await api("/products/upload","POST",{name:n,price:p,image_url:JSON.stringify(allMedia),description:document.getElementById("pDesc").value,stock:1});
+    toast("🚀 Vehicle published with " + uploadedPhotos.length + " photos!");
     document.getElementById("pName").value="";
     document.getElementById("pPrice").value="";
     document.getElementById("pDesc").value="";
+    document.getElementById("pPhotos").value="";
+    document.getElementById("pVideo").value="";
+    document.getElementById("photoPreview").innerHTML="";
+    document.getElementById("videoPreview").innerHTML="";
+    document.getElementById("uploadStatus").textContent="";
+    uploadedPhotos=[];
+    uploadedVideo="";
     go("Cars");
   }catch(e){alert("Failed: "+e.message);}
 }
