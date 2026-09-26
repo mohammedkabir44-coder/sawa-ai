@@ -2872,20 +2872,32 @@ def _wa_send(to_phone, message):
         return False
 
 def _wa_bot_reply(text, db):
-    prods = db.query(Product).filter(Product.is_active.is_(True)).order_by(Product.id.desc()).limit(6).all()
-    car_words = ["car", "price", "show", "buy", "available", "list", "suv", "camry", "lexus", "toyota", "benz"]
-    if any(k in text for k in car_words):
-        if not prods:
-            return "Salam! Sodangi Motors here. No cars in stock right now, please check back soon!"
-        lines = ["Salam! Welcome to Sodangi Motors.", "Available vehicles today:", ""]
-        for p in prods:
-            lines.append("* " + str(p.name) + " - NGN " + format(float(p.price or 0), ",.0f"))
-        lines.append("")
-        lines.append("Reply with the car name for photos, or WhatsApp us to book a test drive!")
-        return "\n".join(lines)
-    if any(k in text for k in ["hello", "hi", "salam", "good day"]):
-        return "Salam! Welcome to Sodangi Motors. Reply 'cars' to see today's available vehicles with prices."
-    return "Salam! Sodangi Motors here. Reply 'cars' to see available vehicles with prices, or tell us what you need (e.g. 'SUV under 5 million')."
+    import os
+    try:
+        import openai
+    except ImportError:
+        pass
+        
+    prods = db.query(Product).filter(Product.is_active.is_(True)).order_by(Product.id.desc()).limit(10).all()
+    inv = "\n".join([f"- {p.name} (NGN {float(p.price or 0):,.0f})" for p in prods]) or "No cars currently in stock."
+    
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    if not api_key or api_key.startswith("sk-dummy"):
+        if any(k in text.lower() for k in ["car", "price", "show", "buy", "available", "list", "cars"]):
+            return f"Salam! Welcome to Sodangi Motors. Available vehicles today:\n{inv}\n\nReply with the car name for photos!"
+        return "Salam! Sodangi Motors here. Reply 'cars' to see our inventory."
+
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        sys_prompt = f"You are a friendly, professional sales agent for Sodangi Motors in Nigeria. Keep replies concise, polite, and use emojis. Quote prices in NGN.\n\nINVENTORY:\n{inv}"
+        res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": text}],
+            max_tokens=150, temperature=0.7
+        )
+        return res.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Salam! I'm having a little trouble connecting to my brain right now. Please reply 'cars' to see our inventory!"
 
 @router.get("/whatsapp-webhook")
 async def wa_webhook_verify(request: Request):

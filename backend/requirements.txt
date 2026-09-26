@@ -19,3 +19,5 @@ gTTS
 
 psycopg
 psycopg-binary
+
+openai
