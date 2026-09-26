@@ -16,11 +16,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 async def catch_all(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"error": str(exc), "trace": traceback.format_exc()})
 
-@app.get("/")
-def root():
-    return {"status": "ALIVE", "message": "Server is breathing."}
+@app.get("/", include_in_schema=False)
+def root_market():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/v1/dashboard/market")
 
-# CATCHES IMPORT CRASHES
 try:
     from app.api.v1.api import api_router
     app.include_router(api_router, prefix="/api/v1")
