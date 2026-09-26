@@ -3391,3 +3391,37 @@ function logout(){
 </body>
 </html>"""
     return Response(content=html, media_type="text/html")
+
+
+@router.get("/bot-diagnose")
+def bot_diagnose():
+    import os, traceback
+    out = {}
+    api_key = os.getenv("OPENAI_API_KEY", "NOT SET")
+    out["api_key_preview"] = api_key[:15] + "..." if len(api_key) > 15 else api_key
+    
+    try:
+        import openai
+        out["openai_installed"] = True
+        try:
+            out["openai_version"] = openai.__version__
+        except:
+            pass
+    except Exception as e:
+        out["openai_installed"] = False
+        out["openai_error"] = str(e)
+        return out
+
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": "Say hello"}],
+            max_tokens=10
+        )
+        out["ai_test"] = "SUCCESS: " + res.choices[0].message.content
+    except Exception as e:
+        out["ai_test"] = "FAILED"
+        out["ai_error"] = str(e)
+        
+    return out
