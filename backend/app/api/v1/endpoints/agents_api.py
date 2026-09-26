@@ -2872,32 +2872,66 @@ def _wa_send(to_phone, message):
         return False
 
 def _wa_bot_reply(text, db):
-    import os
-    try:
-        import openai
-    except ImportError:
-        pass
-        
-    prods = db.query(Product).filter(Product.is_active.is_(True)).order_by(Product.id.desc()).limit(10).all()
-    inv = "\n".join([f"- {p.name} (NGN {float(p.price or 0):,.0f})" for p in prods]) or "No cars currently in stock."
+    import difflib
+    import re
     
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key or api_key.startswith("sk-dummy"):
-        if any(k in text.lower() for k in ["car", "price", "show", "buy", "available", "list", "cars"]):
-            return f"Salam! Welcome to Sodangi Motors. Available vehicles today:\n{inv}\n\nReply with the car name for photos!"
-        return "Salam! Sodangi Motors here. Reply 'cars' to see our inventory."
+    prods = db.query(Product).filter(Product.is_active.is_(True)).all()
+    if not prods:
+        return "Salam! Sodangi Motors here. Our showroom is currently being restocked. Please check back soon!"
+        
+    t = text.lower().strip()
+    
+    # 1. GREETING
+    if any(k in t for k in ["hello", "hi", "salam", "good day", "morning", "evening"]):
+        return "Salam! Welcome to Sodangi Motors 🚗.\n\nReply 'cars' to see our inventory, or type a car name (e.g., 'Camry')!"
+        
+    # 2. BUDGET FILTER (e.g., "under 5000000", "less than 5 million")
+    budget_match = re.search(r'(?:under|below|less than|max|budget)\s*(\d[\d,\.]*)', t)
+    if budget_match:
+        try:
+            val_str = budget_match.group(1).replace(',', '').replace('.', '')
+            if 'million' in t or 'm' in t.split()[-1]:
+                budget = int(val_str) * 1000000
+            else:
+                budget = int(val_str)
+                
+            matches = [p for p in prods if float(p.price or 0) <= budget]
+            if matches:
+                inv = "\n".join([f"* {p.name} - NGN {float(p.price):,.0f}" for p in matches[:5]])
+                return f"Salam! Here are our vehicles under NGN {budget:,.0f}:\n{inv}\n\nReply with a car name for details!"
+            else:
+                min_p = min(float(p.price) for p in prods)
+                return f"Salam! We don't have any vehicles under NGN {budget:,.0f} right now. Our lowest price is NGN {min_p:,.0f}."
+        except:
+            pass
 
-    try:
-        client = openai.OpenAI(api_key=api_key)
-        sys_prompt = f"You are a friendly, professional sales agent for Sodangi Motors in Nigeria. Keep replies concise, polite, and use emojis. Quote prices in NGN.\n\nINVENTORY:\n{inv}"
-        res = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": text}],
-            max_tokens=150, temperature=0.7
-        )
-        return res.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Salam! I'm having a little trouble connecting to my brain right now. Please reply 'cars' to see our inventory!"
+    # 3. SPECIFIC CAR SEARCH (Fuzzy Matching)
+    best_match = None
+    best_score = 0.0
+    for p in prods:
+        score = difflib.SequenceMatcher(None, t, p.name.lower()).ratio()
+        if score > best_score and score > 0.5:
+            best_score = score
+            best_match = p
+            
+    if best_match and best_score > 0.6:
+        link = f"https://sawa-ai-backend.vercel.app/api/v1/dashboard/showroom/{best_match.id}"
+        desc = (best_match.description or "Premium vehicle available now.")[:100]
+        return f"🚗 *{best_match.name}*\n💰 NGN {float(best_match.price):,.0f}\n📝 {desc}\n\n👇 View photos and details here:\n{link}\n\nOr reply 'cars' to see everything!"
+
+    # 4. BUYING INTENT / LEAD CAPTURE
+    if any(k in t for k in ["buy", "purchase", "interested", "call me", "contact", "agent"]):
+        return "Salam! We'd love to help you buy. 🤝\nPlease click the link below to chat directly with our sales team on WhatsApp:\nhttps://wa.me/2349079437745?text=Salam!%20I%20am%20interested%20in%20buying%20a%20car."
+
+    # 5. GENERAL INVENTORY FALLBACK
+    if any(k in t for k in ["car", "price", "show", "available", "list", "cars", "inventory", "stock"]):
+        inv = "\n".join([f"* {p.name} - NGN {float(p.price or 0):,.0f}" for p in prods[:10]])
+        return f"Salam! Here is our current inventory:\n\n{inv}\n\n💡 *Tip:* Type a car name (e.g., 'Camry') or your budget (e.g., 'under 5 million')!"
+        
+    # 6. UNKNOWN INTENT
+    inv_sample = "\n".join([f"* {p.name}" for p in prods[:5]])
+    return f"Salam! I am the Sodangi Motors AI. 🤖\nI can help you find a car!\n\nTry saying:\n- 'Show cars'\n- 'Camry'\n- 'Under 5 million'\n\nOur top cars:\n{inv_sample}"
+
 
 @router.get("/whatsapp-webhook")
 async def wa_webhook_verify(request: Request):
