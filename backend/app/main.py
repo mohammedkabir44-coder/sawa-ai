@@ -84,7 +84,17 @@ def showroom_direct_hardcoded(product_id: int):
         html = f'''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>{name}</title>
         <style>body{{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;padding-bottom:100px}}.gal{{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#000}}.wrap{{max-width:600px;margin:0 auto;padding:20px}}.price{{font-size:28px;font-weight:900;color:#10B981;margin:10px 0}}.badge{{background:rgba(16,185,129,0.2);color:#10B981;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}}.cta{{position:fixed;bottom:0;left:0;right:0;padding:20px;background:#0A0F1C;border-top:1px solid #333;text-align:center}}.btn{{display:block;background:#25D366;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:900;font-size:18px;box-shadow:0 10px 20px rgba(37,211,102,0.3)}}</style>
         </head><body><div class="gal">{gallery}</div><div class="wrap"><span class="badge">✅ VERIFIED SELLER</span><h1 style="margin-top:8px">{name}</h1><div class="price">&#8358; {price_txt}</div><p style="color:#94A3B8;line-height:1.6;margin-top:16px">{desc}</p></div>
-        <div class="cta"><a href="https://wa.me/2349079437745?text=Salam! I am looking at the {name} (NGN {price_txt})" target="_blank" class="btn">💬 Verify & Buy on WhatsApp</a></div></body></html>'''
+        <div class="wrap" style="margin-top:20px">
+  <div style="background:linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.05)); border:1px solid rgba(16,185,129,0.3); border-radius:20px; padding:20px; text-align:center;">
+    <h2 style="color:#10B981; font-size:20px; margin-bottom:8px; letter-spacing:-0.5px;">Ready to make a move?</h2>
+    <p style="color:#CBD5E1; font-size:14px; margin-bottom:16px; line-height:1.5;">Do you want to buy this car or checkout our full showroom?</p>
+    <div style="display:flex; gap:12px;">
+      <a href="#wa-bottom" style="flex:1; background:#1E293B; color:#fff; padding:14px; border-radius:12px; text-decoration:none; font-weight:700; font-size:14px; border:1px solid #334155; transition:transform 0.2s;">💰 Buy Now</a>
+      <a href="/api/v1/dashboard/market" style="flex:1; background:#059669; color:#fff; padding:14px; border-radius:12px; text-decoration:none; font-weight:700; font-size:14px; box-shadow:0 4px 12px rgba(5,150,105,0.3); transition:transform 0.2s;">🏪 Checkout Showroom</a>
+    </div>
+  </div>
+</div>
+<div class="cta" id="wa-bottom"><a href="https://wa.me/2349079437745?text=Salam! I am looking at the {name} (NGN {price_txt})" target="_blank" class="btn">💬 Verify & Buy on WhatsApp</a></div></body></html>'''
         
         return HTMLResponse(content=html)
     except Exception as e:
