@@ -91,3 +91,24 @@ def showroom_direct_hardcoded(product_id: int):
         return HTMLResponse(content="<h2 style='color:#fff;text-align:center;padding:40px;font-family:sans-serif'>Server Error: " + str(e) + "</h2>", status_code=500)
     finally:
         db.close()
+
+
+@app.get("/api/v1/dashboard/debug-car-15")
+def debug_car_15():
+    from app.core.database import SessionLocal
+    from app.models.product import Product
+    db = SessionLocal()
+    try:
+        p = db.query(Product).filter(Product.id == 15).first()
+        if not p: return {"error": "Car 15 not found"}
+        return {
+            "id": p.id,
+            "name": p.name,
+            "images_raw": p.images,
+            "images_type": str(type(p.images)),
+            "is_json_string": isinstance(p.images, str) and p.images.startswith('[')
+        }
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        db.close()
