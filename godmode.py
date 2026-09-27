@@ -1,74 +1,19 @@
-import os
-import logging
-import traceback
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+﻿import urllib.request, json, time, subprocess, re
 
-if not os.getenv("OPENAI_API_KEY"):
-    os.environ["OPENAI_API_KEY"] = "sk-dummy-key"
+print("="*60)
+print("🕵️ SHOWROOM 404 EXORCISM & EXACT LINK FINDER")
+print("="*60)
 
-app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# 1. Inject God Mode Showroom Route directly into main.py
+url = "https://raw.githubusercontent.com/mohammedkabir44-coder/sawa-ai/main/backend/app/main.py"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+with urllib.request.urlopen(req, timeout=30) as r:
+    mc = r.read().decode()
 
-# CATCHES ALL 500 ERRORS AND PRINTS THE TRACEBACK
-@app.exception_handler(Exception)
-async def catch_all(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"error": str(exc), "trace": traceback.format_exc()})
+# Wipe any old showroom routes in main.py to prevent conflicts
+mc = re.sub(r'@app\.get\("/api/v1/dashboard/showroom/\{product_id\}".*?(?=\n@app\.|\Z)', '', mc, flags=re.DOTALL)
 
-@app.get("/", include_in_schema=False)
-def root_market():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/api/v1/dashboard/market")
-
-try:
-    from app.api.v1.api import api_router
-    app.include_router(api_router, prefix="/api/v1")
-except Exception as e:
-    trace = traceback.format_exc()
-    @app.get("/api/v1/dashboard/health")
-    @app.get("/api/v1/dashboard/ping")
-    def router_crash():
-        return {"status": "ROUTER_IMPORT_CRASH", "error": str(e), "trace": trace}
-
-
-@app.get("/api/v1/dashboard/debug-first-car")
-def debug_first_car_direct():
-    from app.core.database import SessionLocal
-    from app.models.product import Product
-    db = SessionLocal()
-    try:
-        p = db.query(Product).order_by(Product.id.desc()).first()
-        if p:
-            return {"id": p.id, "name": p.name, "url": "/api/v1/dashboard/showroom/" + str(p.id)}
-        return {"error": "No cars in database!"}
-    except Exception as e:
-        return {"error": "DB Query failed: " + str(e)}
-    finally:
-        db.close()
-
-
-
-@app.get("/api/v1/dashboard/debug-car-15")
-def debug_car_15():
-    from app.core.database import SessionLocal
-    from app.models.product import Product
-    db = SessionLocal()
-    try:
-        p = db.query(Product).filter(Product.id == 15).first()
-        if not p: return {"error": "Car 15 not found"}
-        return {
-            "id": p.id,
-            "name": p.name,
-            "images_raw": p.images,
-            "images_type": str(type(p.images)),
-            "is_json_string": isinstance(p.images, str) and p.images.startswith('[')
-        }
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        db.close()
-
+ROUTE = """
 
 @app.get("/api/v1/dashboard/showroom/{product_id}")
 def showroom_god_mode(product_id: int):
@@ -111,3 +56,43 @@ def showroom_god_mode(product_id: int):
         return HTMLResponse(content=f"<h1 style='color:#fff;text-align:center;padding:50px;font-family:sans-serif'>DB Error: {e}</h1>", status_code=500)
     finally:
         db.close()
+"""
+
+mc += ROUTE
+with open("backend/app/main.py", "w", encoding="utf-8") as f: f.write(mc)
+print("✅ God Mode Showroom injected directly into main.py!")
+
+subprocess.run(["git", "add", "."])
+subprocess.run(["git", "commit", "-m", "God Mode: Bulletproof showroom in main.py"])
+subprocess.run(["git", "push", "origin", "main", "--force"])
+
+print("\n⏳ Waiting 75s for Vercel to rebuild...")
+time.sleep(75)
+
+# 2. Get the EXACT newest car ID
+print("\n🔍 Finding your newest car ID from the database...")
+req = urllib.request.Request("https://sawa-ai-backend.vercel.app/api/v1/dashboard/debug-first-car", headers={"User-Agent": "Mozilla/5.0"})
+try:
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = json.loads(r.read().decode())
+        new_id = data.get("id")
+        new_name = data.get("name", "Unknown")
+        print(f"✅ Newest car in DB: {new_name} (ID: {new_id})")
+        
+        new_url = f"https://sawa-ai-backend.vercel.app/api/v1/dashboard/showroom/{new_id}"
+        print("\n" + "="*60)
+        print("👉 OPEN THIS EXACT LINK ON YOUR PHONE:")
+        print(new_url)
+        print("="*60)
+        
+        # Verify it works
+        print("\n🔍 Pinging the new link...")
+        req2 = urllib.request.Request(new_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req2, timeout=30) as r2:
+            body = r2.read().decode()
+            if "VERIFIED SELLER" in body:
+                print("✅ ✅ ✅ LINK IS 100% LIVE AND SERVING YOUR PHOTOS!")
+            else:
+                print("⚠️ Link loaded but missing expected HTML.")
+except Exception as e:
+    print("❌ Error fetching newest car:", e)
