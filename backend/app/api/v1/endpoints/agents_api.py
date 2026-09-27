@@ -380,7 +380,12 @@ def upload(req: ProductReq, request: Request, db: Session = Depends(get_db)):
         db.add(p)
 
 
-        db.commit()
+        
+        if hasattr(req, 'image_url') and req.image_url:
+            p.images = req.image_url
+        else:
+            p.images = '[]'
+db.commit()
 
 
         db.refresh(p)
@@ -2674,7 +2679,12 @@ def update_product_v4(product_id: int, req: ProductReq, request: Request, db: Se
         p.description = req.description
     if req.image_url:
         p.images = req.image_url if req.image_url.startswith("[") else json.dumps([req.image_url])
-    db.commit()
+    
+    if hasattr(req, 'image_url') and req.image_url:
+        p.images = req.image_url
+    else:
+        p.images = '[]'
+db.commit()
     return {"status": "updated", "id": product_id}
 
 @router.get("/v4-dashboard")
