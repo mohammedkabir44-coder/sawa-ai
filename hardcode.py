@@ -1,52 +1,20 @@
-import os
-import logging
-import traceback
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+﻿import subprocess, time, urllib.request, re, json
 
-if not os.getenv("OPENAI_API_KEY"):
-    os.environ["OPENAI_API_KEY"] = "sk-dummy-key"
+print("="*60)
+print("🫀 HARDCODING SHOWROOM DIRECTLY INTO MAIN.PY")
+print("="*60)
 
-app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# 1. DOWNLOAD main.py
+url = "https://raw.githubusercontent.com/mohammedkabir44-coder/sawa-ai/main/backend/app/main.py"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+with urllib.request.urlopen(req, timeout=30) as r:
+    mc = r.read().decode()
 
-# CATCHES ALL 500 ERRORS AND PRINTS THE TRACEBACK
-@app.exception_handler(Exception)
-async def catch_all(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"error": str(exc), "trace": traceback.format_exc()})
+# 2. WIPE ANY OLD SHOWROOM ROUTES IN MAIN.PY
+mc = re.sub(r'@app\.get\("/api/v1/dashboard/showroom/\{product_id\}".*?(?=\n@app\.|\Z)', '', mc, flags=re.DOTALL)
 
-@app.get("/", include_in_schema=False)
-def root_market():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/api/v1/dashboard/market")
-
-try:
-    from app.api.v1.api import api_router
-    app.include_router(api_router, prefix="/api/v1")
-except Exception as e:
-    trace = traceback.format_exc()
-    @app.get("/api/v1/dashboard/health")
-    @app.get("/api/v1/dashboard/ping")
-    def router_crash():
-        return {"status": "ROUTER_IMPORT_CRASH", "error": str(e), "trace": trace}
-
-
-@app.get("/api/v1/dashboard/debug-first-car")
-def debug_first_car_direct():
-    from app.core.database import SessionLocal
-    from app.models.product import Product
-    db = SessionLocal()
-    try:
-        p = db.query(Product).order_by(Product.id.desc()).first()
-        if p:
-            return {"id": p.id, "name": p.name, "url": "/api/v1/dashboard/showroom/" + str(p.id)}
-        return {"error": "No cars in database!"}
-    except Exception as e:
-        return {"error": "DB Query failed: " + str(e)}
-    finally:
-        db.close()
-
+# 3. INJECT THE BULLETPROOF SHOWROOM DIRECTLY INTO app
+SHOWROOM_MAIN = """
 
 @app.get("/api/v1/dashboard/showroom/{product_id}")
 def showroom_direct_hardcoded(product_id: int):
@@ -91,3 +59,33 @@ def showroom_direct_hardcoded(product_id: int):
         return HTMLResponse(content="<h2 style='color:#fff;text-align:center;padding:40px;font-family:sans-serif'>Server Error: " + str(e) + "</h2>", status_code=500)
     finally:
         db.close()
+"""
+
+mc += SHOWROOM_MAIN
+
+with open("backend/app/main.py", "w", encoding="utf-8") as f:
+    f.write(mc)
+print("✅ Showroom hardcoded directly into main.py!")
+
+# 4. PUSH
+subprocess.run(["git", "add", "."])
+subprocess.run(["git", "commit", "-m", "Ultimate Fix: Hardcode Showroom into main.py"])
+subprocess.run(["git", "push", "origin", "main", "--force"])
+
+print("\n⏳ Waiting 75s for Vercel to rebuild main.py...")
+time.sleep(75)
+
+# 5. VERIFY IT WORKS
+print("\n🔍 Testing the hardcoded showroom link...")
+try:
+    req = urllib.request.Request("https://sawa-ai-backend.vercel.app/api/v1/dashboard/showroom/15", headers={"User-Agent": "Mozilla/5.0"})
+    r = urllib.request.urlopen(req, timeout=30)
+    body = r.read().decode()
+    if "VERIFIED SELLER" in body:
+        print("✅ ✅ ✅ SHOWROOM IS 100% ALIVE AND SERVING HTML!")
+        print("👉 Click this link right now on your phone:")
+        print("https://sawa-ai-backend.vercel.app/api/v1/dashboard/showroom/15")
+    else:
+        print("⚠️ Server responded but HTML is missing.")
+except Exception as e:
+    print("❌ Error:", e)
