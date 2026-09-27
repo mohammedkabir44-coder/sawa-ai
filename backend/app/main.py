@@ -30,3 +30,19 @@ except Exception as e:
     @app.get("/api/v1/dashboard/ping")
     def router_crash():
         return {"status": "ROUTER_IMPORT_CRASH", "error": str(e), "trace": trace}
+
+
+@app.get("/api/v1/dashboard/debug-first-car")
+def debug_first_car_direct():
+    from app.core.database import SessionLocal
+    from app.models.product import Product
+    db = SessionLocal()
+    try:
+        p = db.query(Product).order_by(Product.id.desc()).first()
+        if p:
+            return {"id": p.id, "name": p.name, "url": "/api/v1/dashboard/showroom/" + str(p.id)}
+        return {"error": "No cars in database!"}
+    except Exception as e:
+        return {"error": "DB Query failed: " + str(e)}
+    finally:
+        db.close()
