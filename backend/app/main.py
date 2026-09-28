@@ -229,3 +229,5 @@ function copyCap(){
         return HTMLResponse(content="<h1 style='color:#fff;text-align:center;padding:50px;font-family:sans-serif'>Server Error: " + str(e) + "</h1>", status_code=500)
     finally:
         db.close()
+
+# FORCE DEPLOY 1790639648.4990754
