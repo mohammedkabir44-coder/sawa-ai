@@ -140,7 +140,7 @@ def ultimate_showroom_247(product_id: int):
         </head><body><div class="gal">{gallery}</div><div class="wrap"><span class="badge">✅ VERIFIED SELLER</span><h1 style="margin-top:8px">{name}</h1><div class="price">₦ {price}</div></div>
         <div class="cta">
           <a href="https://wa.me/2348142969979?text=Salam! I am looking at the {name}" target="_blank" class="btn-wa">💬 WhatsApp Seller</a>
-          <button onclick="navigator.clipboard.writeText('🚗 {name} - ₦{price}\n✅ Verified Seller | Sodangi Motors\n👉 ' + location.href).then(function(){{{alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB')}}});" style="background:#3B82F6;color:#fff;padding:12px;border-radius:12px;border:none;font-weight:800;width:100%;text-align:center">📣 Copy Ad Caption</button>
+          <button onclick="navigator.clipboard.writeText('🚗 {name} - ₦{price}\n✅ Verified Seller | Sodangi Motors\n👉 ' + location.href).then(function(){alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB')});" style="background:#3B82F6;color:#fff;padding:12px;border-radius:12px;border:none;font-weight:800;width:100%;text-align:center">📣 Copy Ad Caption</button>
         <a href="tel:+2348142969979" class="btn-call">📞 Call Inspection <span style="font-size:12px;opacity:0.8">(₦5,000 Fee)</span></a>
           <a href="/api/v1/dashboard/market" class="btn-agent">🏪 Back to Marketplace</a>
         </div></body></html>'''
