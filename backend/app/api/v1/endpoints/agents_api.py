@@ -768,6 +768,24 @@ function generateStatusImage(i){var c=(window.CARS||[])[i];if(!c)return;toast("G
 function drawCanvas(c,nm,ph){var cv=document.createElement("canvas");var cx=cv.getContext("2d");var im=new Image();im.crossOrigin="anonymous";var src=c.images&&c.images.length?c.images[0]:"";if(!src){toast("No image");return;}im.onload=function(){cv.width=1080;cv.height=1920;var sc=Math.max(cv.width/im.width,cv.height/im.height);cx.drawImage(im,(cv.width-im.width*sc)/2,(cv.height-im.height*sc)/2,im.width*sc,im.height*sc);var g=cx.createLinearGradient(0,cv.height-600,0,cv.height);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,0.95)");cx.fillStyle=g;cx.fillRect(0,cv.height-600,cv.width,600);cx.textAlign="center";cx.fillStyle="#fff";cx.font="bold 70px sans-serif";cx.fillText(c.name,cv.width/2,cv.height-350);cx.fillStyle="#10B981";cx.font="bold 100px sans-serif";cx.fillText("\u20A6"+Number(c.price).toLocaleString(),cv.width/2,cv.height-220);cx.fillStyle="#fff";cx.font="bold 50px sans-serif";cx.fillText(nm,cv.width/2,cv.height-110);cx.fillStyle="#FBBF24";cx.font="bold 60px sans-serif";cx.fillText(ph,cv.width/2,cv.height-40);try{var a=document.createElement("a");a.download=c.name+"_Status.png";a.href=cv.toDataURL("image/png");a.click();toast("Status saved!");}catch(e){cv.toBlob(function(b){window.open(URL.createObjectURL(b));});}};im.onerror=function(){toast("Image error");};im.src=src;}
 if(TOKEN){enterDash();}else{loadPublicShowroom();initSocial();}
 </script>
+
+<a href="#" onclick="openStats();return false;" style="position:fixed;bottom:90px;right:16px;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;padding:12px 18px;border-radius:50px;font-weight:900;box-shadow:0 8px 18px rgba(245,158,11,.4);z-index:999;text-decoration:none">📊 CEO Stats</a>
+<div id="ceoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;padding:20px;overflow-y:auto">
+ <div style="max-width:600px;margin:0 auto;background:#0F172A;border:1px solid #334155;border-radius:20px;padding:20px;color:#fff">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h2 style="margin:0;color:#F59E0B">📊 CEO Dashboard</h2><button onclick="document.getElementById('ceoModal').style.display='none'" style="background:#EF4444;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:800">Close</button></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+   <div style="background:#1E293B;padding:14px;border-radius:12px;text-align:center"><p style="margin:0;font-size:12px;color:#94A3B8">Cars in Stock</p><h3 id="statCars" style="margin:6px 0 0;color:#10B981">0</h3></div>
+   <div style="background:#1E293B;padding:14px;border-radius:12px;text-align:center"><p style="margin:0;font-size:12px;color:#94A3B8">Inventory Value</p><h3 id="statVal" style="margin:6px 0 0;color:#10B981">₦0</h3></div>
+   <div style="background:#1E293B;padding:14px;border-radius:12px;text-align:center;grid-column:span 2"><p style="margin:0;font-size:12px;color:#94A3B8">Potential 5% Commission</p><h3 id="statComm" style="margin:6px 0 0;color:#F59E0B">₦0</h3></div>
+  </div>
+  <canvas id="catChart" style="background:#1E293B;border-radius:12px;padding:10px;max-height:260px"></canvas>
+ </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+async function openStats(){document.getElementById('ceoModal').style.display='block';try{var r=await fetch('/api/v1/dashboard/stats');var d=await r.json();if(d.error){alert(d.error);return;}document.getElementById('statCars').innerText=d.total_cars;document.getElementById('statVal').innerText='₦'+Number(d.total_value).toLocaleString();document.getElementById('statComm').innerText='₦'+Number(d.commission).toLocaleString();var ctx=document.getElementById('catChart').getContext('2d');if(window.myChart)window.myChart.destroy();window.myChart=new Chart(ctx,{type:'doughnut',data:{labels:Object.keys(d.categories),datasets:[{data:Object.values(d.categories),backgroundColor:['#10B981','#3B82F6','#F59E0B','#EF4444']}]},options:{plugins:{legend:{labels:{color:'#fff'}}}}});}catch(e){alert('Stats failed: '+e.message);}}
+</script>
+
 </body>
 </html>"""
 
