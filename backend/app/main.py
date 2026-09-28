@@ -108,7 +108,17 @@ def ultimate_showroom_247(product_id: int):
     try:
         p = db.query(Product).filter(Product.id == product_id).first()
         if not p:
-            return HTMLResponse("<html><body style='background:#0A0F1C;color:#fff;font-family:sans-serif;text-align:center;padding:50px'><h1>Vehicle Not Found</h1><a href='/api/v1/dashboard/market' style='color:#10B981'>Browse All Cars</a></body></html>")
+            return HTMLResponse("<html><body style='background:#0A0F1C;color:#fff;font-family:sans-serif;text-align:center;padding:50px'><h1>Vehicle Not Found</h1><a href='/api/v1/dashboard/market' style='color:#10B981'>Browse All Cars</a>
+<script>
+function copyCaption(n, p) {
+  var text = "🚗 " + n + " - ₦" + p + "\n✅ Verified Seller | Sodangi Motors\n👉 " + location.href;
+  navigator.clipboard.writeText(text).then(function() {
+    alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB');
+  });
+}
+</script>
+
+</body></html>")
         
         imgs = []
         try:
@@ -129,6 +139,10 @@ def ultimate_showroom_247(product_id: int):
         price = f"{float(p.price or 0):,.0f}"
         
         gallery = ""
+        # Safely build the caption button outside the f-string to avoid crashes
+        safe_name = name.replace("'", "\\'")
+        caption_btn = f'<button onclick="copyCaption(\'{safe_name}\', \'{price}\')" style="background:#3B82F6;color:#fff;padding:12px;border-radius:12px;border:none;font-weight:800;width:100%;text-align:center;margin-bottom:8px">📣 Copy Ad Caption</button>'
+
         for u in imgs:
             if ".mp4" in str(u) or ".webm" in str(u):
                 gallery += f'<video src="{u}" controls playsinline style="width:100%;height:320px;object-fit:cover;scroll-snap-align:center;flex-shrink:0;background:#000"></video>'
@@ -139,11 +153,22 @@ def ultimate_showroom_247(product_id: int):
         <style>body{{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;padding-bottom:240px}}.gal{{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#000;scrollbar-width:none}}.gal::-webkit-scrollbar{{display:none}}.wrap{{max-width:600px;margin:0 auto;padding:20px}}.price{{font-size:28px;font-weight:900;color:#10B981;margin:10px 0}}.badge{{background:rgba(16,185,129,0.2);color:#10B981;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}}.cta{{position:fixed;bottom:0;left:0;right:0;padding:12px;background:#0A0F1C;border-top:1px solid #333;display:flex;flex-direction:column;gap:8px;z-index:100}}.btn-wa{{display:block;background:#25D366;color:#fff;padding:14px;border-radius:12px;text-decoration:none;font-weight:900;font-size:15px;text-align:center}}.btn-call{{display:block;background:rgba(245,158,11,0.1);color:#F59E0B;padding:12px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;border:1px solid #F59E0B;text-align:center}}.btn-agent{{display:block;background:#3B82F6;color:#fff;padding:12px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;text-align:center}}</style>
         </head><body><div class="gal">{gallery}</div><div class="wrap"><span class="badge">✅ VERIFIED SELLER</span><h1 style="margin-top:8px">{name}</h1><div class="price">₦ {price}</div></div>
         <div class="cta">
+          {caption_btn}
           <a href="https://wa.me/2348142969979?text=Salam! I am looking at the {name}" target="_blank" class="btn-wa">💬 WhatsApp Seller</a>
-          
+          <button onclick="navigator.clipboard.writeText('🚗 {name} - ₦{price}\n✅ Verified Seller | Sodangi Motors\n👉 ' + location.href).then(function(){alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB')});" style="background:#3B82F6;color:#fff;padding:12px;border-radius:12px;border:none;font-weight:800;width:100%;text-align:center">📣 Copy Ad Caption</button>
         <a href="tel:+2348142969979" class="btn-call">📞 Call Inspection <span style="font-size:12px;opacity:0.8">(₦5,000 Fee)</span></a>
           <a href="/api/v1/dashboard/market" class="btn-agent">🏪 Back to Marketplace</a>
-        </div></body></html>'''
+        </div>
+<script>
+function copyCaption(n, p) {
+  var text = "🚗 " + n + " - ₦" + p + "\n✅ Verified Seller | Sodangi Motors\n👉 " + location.href;
+  navigator.clipboard.writeText(text).then(function() {
+    alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB');
+  });
+}
+</script>
+
+</body></html>'''
         
         return HTMLResponse(content=html)
     except Exception as e:
