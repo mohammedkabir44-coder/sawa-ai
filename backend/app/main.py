@@ -9,6 +9,13 @@ if not os.getenv("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = "sk-dummy-key"
 
 app = FastAPI()
+
+@app.get("/showroom/{product_id}")
+@app.get("/api/v1/showroom/{product_id}")
+@app.get("/dashboard/showroom/{product_id}")
+def showroom_teleporter(product_id: int):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/api/v1/dashboard/showroom-elite/{product_id}", status_code=307)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # CATCHES ALL 500 ERRORS AND PRINTS THE TRACEBACK
