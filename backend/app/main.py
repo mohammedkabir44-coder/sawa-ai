@@ -140,7 +140,8 @@ def ultimate_showroom_247(product_id: int):
         </head><body><div class="gal">{gallery}</div><div class="wrap"><span class="badge">✅ VERIFIED SELLER</span><h1 style="margin-top:8px">{name}</h1><div class="price">₦ {price}</div></div>
         <div class="cta">
           <a href="https://wa.me/2348142969979?text=Salam! I am looking at the {name}" target="_blank" class="btn-wa">💬 WhatsApp Seller</a>
-          <a href="tel:+2348142969979" class="btn-call">📞 Call Inspection <span style="font-size:12px;opacity:0.8">(₦5,000 Fee)</span></a>
+          <button onclick="navigator.clipboard.writeText('🚗 {name} - ₦{price}\n✅ Verified Seller | Sodangi Motors\n👉 ' + location.href).then(function(){alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB')});" style="background:#3B82F6;color:#fff;padding:12px;border-radius:12px;border:none;font-weight:800;width:100%;text-align:center">📣 Copy Ad Caption</button>
+        <a href="tel:+2348142969979" class="btn-call">📞 Call Inspection <span style="font-size:12px;opacity:0.8">(₦5,000 Fee)</span></a>
           <a href="/api/v1/dashboard/market" class="btn-agent">🏪 Back to Marketplace</a>
         </div></body></html>'''
         
@@ -171,3 +172,29 @@ def ceo_stats_endpoint():
         return {"error": str(e)}
     finally:
         db.close()
+
+
+@app.get("/api/v1/dashboard/alert-save")
+def alert_save(phone: str, budget: int, car: str = ""):
+    from app.core.database import engine
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS buyer_alerts(id SERIAL PRIMARY KEY, phone TEXT, budget BIGINT, car TEXT, created_at TIMESTAMP DEFAULT NOW())"))
+            conn.commit()
+            conn.execute(text("INSERT INTO buyer_alerts(phone,budget,car) VALUES(:p,:b,:c)"), {"p":phone,"b":budget,"c":car})
+            conn.commit()
+        return {"status":"saved"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/v1/dashboard/alert-match")
+def alert_match(price: int = 0):
+    from app.core.database import engine
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text("SELECT phone, budget, car FROM buyer_alerts WHERE budget >= :p"), {"p": price}).fetchall()
+        return {"matches": [{"phone": r[0], "budget": r[1], "car": r[2]} for r in rows]}
+    except Exception as e:
+        return {"matches": [], "error": str(e)}
