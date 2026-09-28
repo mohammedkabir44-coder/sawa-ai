@@ -98,86 +98,6 @@ def force_image_15():
 
 
 @app.get("/api/v1/dashboard/showroom/{product_id}")
-@app.get("/api/v1/dashboard/showroom-elite/{product_id}")
-def ultimate_showroom_247(product_id: int):
-    from app.core.database import SessionLocal
-    from app.models.product import Product
-    from fastapi.responses import HTMLResponse
-    import json as _json
-    db = SessionLocal()
-    try:
-        p = db.query(Product).filter(Product.id == product_id).first()
-        if not p:
-            return HTMLResponse("<html><body style='background:#0A0F1C;color:#fff;font-family:sans-serif;text-align:center;padding:50px'><h1>Vehicle Not Found</h1><a href='/api/v1/dashboard/market' style='color:#10B981'>Browse All Cars</a>
-<script>
-function copyCaption(n, p) {
-  var text = "🚗 " + n + " - ₦" + p + "\n✅ Verified Seller | Sodangi Motors\n👉 " + location.href;
-  navigator.clipboard.writeText(text).then(function() {
-    alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB');
-  });
-}
-</script>
-
-</body></html>")
-        
-        imgs = []
-        try:
-            if isinstance(p.images, str):
-                if p.images.strip().startswith('['): imgs = _json.loads(p.images)
-                elif p.images.strip(): imgs = [p.images]
-        except: imgs = []
-            
-        # FALLBACK: If DB has no photos, inject 3 beautiful fallback photos
-        if not imgs:
-            imgs = [
-                "https://images.unsplash.com/photo-1492144534655-ae79c464b2d7?auto=format&fit=crop&w=1200&q=80",
-                "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
-                "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80"
-            ]
-
-        name = str(p.name or "Vehicle").replace('"',"'").replace('<', '&lt;')
-        price = f"{float(p.price or 0):,.0f}"
-        
-        gallery = ""
-        # Safely build the caption button outside the f-string to avoid crashes
-                
-        for u in imgs:
-            if ".mp4" in str(u) or ".webm" in str(u):
-                gallery += f'<video src="{u}" controls playsinline style="width:100%;height:320px;object-fit:cover;scroll-snap-align:center;flex-shrink:0;background:#000"></video>'
-            else:
-                gallery += f'<img src="{u}" style="width:100%;height:320px;object-fit:cover;scroll-snap-align:center;flex-shrink:0" loading="lazy">'
-
-        html = f'''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>{name}</title>
-        <style>body{{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;padding-bottom:240px}}.gal{{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#000;scrollbar-width:none}}.gal::-webkit-scrollbar{{display:none}}.wrap{{max-width:600px;margin:0 auto;padding:20px}}.price{{font-size:28px;font-weight:900;color:#10B981;margin:10px 0}}.badge{{background:rgba(16,185,129,0.2);color:#10B981;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}}.cta{{position:fixed;bottom:0;left:0;right:0;padding:12px;background:#0A0F1C;border-top:1px solid #333;display:flex;flex-direction:column;gap:8px;z-index:100}}.btn-wa{{display:block;background:#25D366;color:#fff;padding:14px;border-radius:12px;text-decoration:none;font-weight:900;font-size:15px;text-align:center}}.btn-call{{display:block;background:rgba(245,158,11,0.1);color:#F59E0B;padding:12px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;border:1px solid #F59E0B;text-align:center}}.btn-agent{{display:block;background:#3B82F6;color:#fff;padding:12px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;text-align:center}}</style>
-        </head><body><div class="gal">{gallery}</div><div class="wrap"><span class="badge">✅ VERIFIED SELLER</span><h1 style="margin-top:8px">{name}</h1><div class="price">₦ {price}</div></div>
-        <div class="cta">
-          {          <a href="https://wa.me/2348142969979?text=Salam! I am looking at the {name}" target="_blank" class="btn-wa">💬 WhatsApp Seller</a>
-          
-        <a href="tel:+2348142969979" class="btn-call">📞 Call Inspection <span style="font-size:12px;opacity:0.8">(₦5,000 Fee)</span></a>
-          <a href="/api/v1/dashboard/market" class="btn-agent">🏪 Back to Marketplace</a>
-        </div>
-<script>
-function copyCaption(n, p) {
-  var text = "🚗 " + n + " - ₦" + p + "\n✅ Verified Seller | Sodangi Motors\n👉 " + location.href;
-  navigator.clipboard.writeText(text).then(function() {
-    alert('📣 Caption copied! Paste on WhatsApp Status / IG / FB');
-  });
-}
-</script>
-
-</body></html>'''
-        
-
-        # Inject viral button safely using standard string replacement
-        viral_btn = '<button onclick="navigator.clipboard.writeText(document.title + \' - \' + document.querySelector(\'.price\').innerText + \'\\n✅ Verified Seller\\n👉 \' + location.href).then(function(){alert(\'📣 Caption copied!\')})" style="background:#3B82F6;color:#fff;padding:14px;border-radius:12px;border:none;font-weight:900;width:100%;text-align:center;margin-bottom:8px">📣 Copy Ad Caption</button>'
-        html = html.replace('<div class="cta">', viral_btn + '<div class="cta">')
-
-        return HTMLResponse(content=html)
-    except Exception as e:
-        return HTMLResponse(content=f"<h1 style='color:#fff;text-align:center;padding:50px;font-family:sans-serif'>Server Error: {e}</h1>", status_code=500)
-    finally:
-        db.close()
-
 
 @app.get("/api/v1/dashboard/stats")
 def ceo_stats_endpoint():
@@ -225,3 +145,87 @@ def alert_match(price: int = 0):
         return {"matches": [{"phone": r[0], "budget": r[1], "car": r[2]} for r in rows]}
     except Exception as e:
         return {"matches": [], "error": str(e)}
+
+
+@app.get("/api/v1/dashboard/showroom/{product_id}")
+@app.get("/api/v1/dashboard/showroom-elite/{product_id}")
+def ultimate_showroom_247(product_id: int):
+    from app.core.database import SessionLocal
+    from app.models.product import Product
+    from fastapi.responses import HTMLResponse
+    from urllib.parse import quote as _q
+    import json as _json
+    T = r'''<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__NAME__ | Sodangi Motors</title>
+<style>
+body{margin:0;background:#0A0F1C;color:#fff;font-family:system-ui,sans-serif;padding-bottom:250px}
+.gal{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#000;scrollbar-width:none}
+.gal::-webkit-scrollbar{display:none}
+.gal img,.gal video{width:100%;height:320px;object-fit:cover;scroll-snap-align:center;flex-shrink:0}
+.wrap{max-width:600px;margin:0 auto;padding:20px}
+.badge{background:rgba(16,185,129,.2);color:#10B981;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}
+.price{font-size:28px;font-weight:900;color:#10B981;margin:10px 0}
+.cta{position:fixed;bottom:0;left:0;right:0;padding:12px;background:#0A0F1C;border-top:1px solid #333;display:flex;flex-direction:column;gap:8px;z-index:100}
+.b{display:block;padding:14px;border-radius:12px;text-decoration:none;font-weight:900;font-size:15px;text-align:center;border:none;width:100%;cursor:pointer}
+.bcap{background:#3B82F6;color:#fff}
+.bwa{background:#25D366;color:#fff}
+.bcall{background:rgba(245,158,11,.1);color:#F59E0B;border:1px solid #F59E0B}
+.bmkt{background:#1E293B;color:#93C5FD;border:1px solid #334155}
+</style></head><body>
+<div class="gal">__GALLERY__</div>
+<div class="wrap">
+<span class="badge">✅ VERIFIED SELLER</span>
+<h1 style="margin-top:8px">__NAME__</h1>
+<div class="price">₦ __PRICE__</div>
+</div>
+<div class="cta">
+<button class="b bcap" onclick="copyCap()">📣 Copy Ad Caption</button>
+<a class="b bwa" href="__WA__" target="_blank" rel="noopener">💬 WhatsApp Seller</a>
+<a class="b bcall" href="tel:+2348142969979">📞 Call Inspection (₦5,000 Fee)</a>
+<a class="b bmkt" href="/api/v1/dashboard/market">🏪 Checkout Full Showroom</a>
+</div>
+<script>
+function copyCap(){
+  var lines=[document.title, document.querySelector(".price").innerText, "✅ Verified Seller | Sodangi Motors", "👉 " + location.href];
+  var t=lines.join(String.fromCharCode(10));
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){alert("📣 Caption copied! Paste on WhatsApp Status / IG / FB");},function(){prompt("Copy this caption:",t);});
+  }else{prompt("Copy this caption:",t);}
+}
+</script>
+</body></html>'''
+    db = SessionLocal()
+    try:
+        p = db.query(Product).filter(Product.id == product_id).first()
+        if not p:
+            return HTMLResponse("<h1 style='color:#fff;text-align:center;padding:50px;font-family:sans-serif'>Car " + str(product_id) + " not found. <a style='color:#10B981' href='/api/v1/dashboard/market'>Browse all cars</a></h1>", status_code=404)
+        imgs = []
+        try:
+            if isinstance(p.images, str):
+                s = p.images.strip()
+                if s.startswith("["):
+                    parsed = _json.loads(s)
+                    imgs = parsed if isinstance(parsed, list) else []
+                elif s:
+                    imgs = [s]
+        except Exception:
+            imgs = []
+        if not imgs:
+            imgs = ["https://images.unsplash.com/photo-1492144534655-ae79c464b2d7?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80",
+                    "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80"]
+        name = str(p.name or "Vehicle").replace("&", "&amp;").replace("<", "&lt;").replace('"', "'")
+        price = format(float(p.price or 0), ",.0f")
+        gal = ""
+        for u in imgs:
+            su = str(u)
+            if su.endswith(".mp4") or su.endswith(".webm") or su.endswith(".mov"):
+                gal += '<video src="' + su + '" controls playsinline></video>'
+            else:
+                gal += '<img src="' + su + '" loading="lazy" alt="">'
+        wa = "https://wa.me/2348142969979?text=" + _q("Salam! I am looking at the " + name + " (NGN " + price + ") on Sodangi Motors")
+        out = T.replace("__GALLERY__", gal).replace("__NAME__", name).replace("__PRICE__", price).replace("__WA__", wa)
+        return HTMLResponse(content=out)
+    except Exception as e:
+        return HTMLResponse(content="<h1 style='color:#fff;text-align:center;padding:50px;font-family:sans-serif'>Server Error: " + str(e) + "</h1>", status_code=500)
+    finally:
+        db.close()
