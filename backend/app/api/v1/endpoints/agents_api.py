@@ -3215,34 +3215,6 @@ def market_home(db: Session = Depends(get_db)):
     return Response(content=html, media_type="text/html")
 
 
-@router.get("/showroom/{product_id}")
-def showroom_page_resurrected(product_id: int, db: Session = Depends(get_db)):
-    import urllib.parse as _up
-    p = db.query(Product).filter(Product.id == product_id).first()
-    if not p: 
-        return Response("<h2 style='color:#fff;text-align:center;padding:40px;font-family:sans-serif'>Vehicle not found</h2>", media_type="text/html")
-    
-    imgs = _extract_imgs_list(p.images)
-    hero = imgs[0] if imgs else "https://images.unsplash.com/photo-1492144534655-ae79c464b2d7?auto=format&fit=crop&w=1200&q=80"
-    price_txt = format(float(p.price or 0), ",.0f")
-    name = str(p.name).replace('"', "'").replace('<', '&lt;')
-    desc = (p.description or "Premium vehicle available now.").replace('<', '&lt;')
-    
-    wa_text = _up.quote("Salam! I am looking at the " + str(p.name) + " (NGN " + price_txt + ") on Sodangi Motors.")
-    wa_link = "https://wa.me/2349079437745?text=" + wa_text
-    
-    gallery = ""
-    for u in imgs:
-        if u.endswith(".mp4") or u.endswith(".webm") or u.endswith(".mov"):
-            gallery += '<video src="'+u+'" controls playsinline style="width:100%;height:320px;object-fit:cover;scroll-snap-align:center;flex-shrink:0"></video>'
-        else:
-            gallery += '<img src="'+u+'" style="width:100%;height:320px;object-fit:cover;scroll-snap-align:center;flex-shrink:0" loading="lazy">'
-    if not gallery: 
-        gallery = '<img src="'+hero+'" style="width:100%;height:320px;object-fit:cover">'
-
-    html = '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+name+'</title><style>body{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;padding-bottom:100px}.gal{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#000}.wrap{max-width:600px;margin:0 auto;padding:20px}.price{font-size:28px;font-weight:900;color:#10B981;margin:10px 0}.badge{background:rgba(16,185,129,0.2);color:#10B981;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}.cta{position:fixed;bottom:0;left:0;right:0;padding:20px;background:#0A0F1C;border-top:1px solid #333;text-align:center}.btn{display:block;background:#25D366;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:900;font-size:18px;box-shadow:0 10px 20px rgba(37,211,102,0.3)}</style></head><body><div class="gal">'+gallery+'</div><div class="wrap"><span class="badge">✅ VERIFIED SELLER</span><h1 style="margin-top:8px">'+name+'</h1><div class="price">&#8358; '+price_txt+'</div><p style="color:#94A3B8;line-height:1.6;margin-top:16px">'+desc+'</p></div><div class="cta"><a href="'+wa_link+'" target="_blank" class="btn">💬 Verify & Buy on WhatsApp</a></div></body></html>'
-    return Response(content=html, media_type="text/html")
-
 
 @router.get("/debug-first-car")
 def debug_first_car(db: Session = Depends(get_db)):

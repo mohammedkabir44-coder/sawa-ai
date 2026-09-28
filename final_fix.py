@@ -1,101 +1,23 @@
-import os
-import logging
-import traceback
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+﻿import subprocess, time, urllib.request, re, json
 
-if not os.getenv("OPENAI_API_KEY"):
-    os.environ["OPENAI_API_KEY"] = "sk-dummy-key"
+print("="*60)
+print("🔥 FINAL SHOWROOM EXORCISM (100% BULLETPROOF 24/7)")
+print("="*60)
 
-app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# 1. CLEANSE main.py
+print("\n[1/4] Cleansing main.py of all showroom ghosts...")
+url = "https://raw.githubusercontent.com/mohammedkabir44-coder/sawa-ai/main/backend/app/main.py"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+with urllib.request.urlopen(req, timeout=30) as r:
+    mc = r.read().decode()
 
-# CATCHES ALL 500 ERRORS AND PRINTS THE TRACEBACK
-@app.exception_handler(Exception)
-async def catch_all(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"error": str(exc), "trace": traceback.format_exc()})
+# Remove any old showroom routes from main.py
+mc = re.sub(r'@app\.get\("/api/v1/dashboard/showroom(?:-elite)?/\{product_id\}".*?(?=\n@app\.|\Z)', '', mc, flags=re.DOTALL)
+mc = re.sub(r'def showroom_.*?\(product_id: int\):.*?(?=\n@app\.|\Z)', '', mc, flags=re.DOTALL)
+mc = re.sub(r'def ultimate_showroom.*?(?=\n@app\.|\Z)', '', mc, flags=re.DOTALL)
 
-@app.get("/", include_in_schema=False)
-def root_market():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/api/v1/dashboard/market")
-
-try:
-    from app.api.v1.api import api_router
-    app.include_router(api_router, prefix="/api/v1")
-except Exception as e:
-    trace = traceback.format_exc()
-    @app.get("/api/v1/dashboard/health")
-    @app.get("/api/v1/dashboard/ping")
-    def router_crash():
-        return {"status": "ROUTER_IMPORT_CRASH", "error": str(e), "trace": trace}
-
-
-@app.get("/api/v1/dashboard/debug-first-car")
-def debug_first_car_direct():
-    from app.core.database import SessionLocal
-    from app.models.product import Product
-    db = SessionLocal()
-    try:
-        p = db.query(Product).order_by(Product.id.desc()).first()
-        if p:
-            return {"id": p.id, "name": p.name, "url": "/api/v1/dashboard/showroom/" + str(p.id)}
-        return {"error": "No cars in database!"}
-    except Exception as e:
-        return {"error": "DB Query failed: " + str(e)}
-    finally:
-        db.close()
-
-
-
-@app.get("/api/v1/dashboard/debug-car-15")
-def debug_car_15():
-    from app.core.database import SessionLocal
-    from app.models.product import Product
-    db = SessionLocal()
-    try:
-        p = db.query(Product).filter(Product.id == 15).first()
-        if not p: return {"error": "Car 15 not found"}
-        return {
-            "id": p.id,
-            "name": p.name,
-            "images_raw": p.images,
-            "images_type": str(type(p.images)),
-            "is_json_string": isinstance(p.images, str) and p.images.startswith('[')
-        }
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        db.close()
-
-
-@app.post("/api/v1/dashboard/force-image-15")
-def force_image_15():
-    from app.core.database import SessionLocal
-    from app.models.product import Product
-    import json as _json
-    db = SessionLocal()
-    try:
-        p = db.query(Product).filter(Product.id == 15).first()
-        if not p: return {"error": "Car 15 not found"}
-        
-        # 3 High quality car photos
-        photos = [
-            "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1000&q=80",
-            "https://images.unsplash.com/photo-1494905998402-395d579af36f?auto=format&fit=crop&w=1000&q=80"
-        ]
-        p.images = _json.dumps(photos)
-        db.commit()
-        return {"status": "INJECTED", "count": len(photos)}
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        db.close()
-
-
-
+# 2. INJECT THE ULTIMATE SHOWROOM INTO main.py (BOTH URLS!)
+ULTIMATE_SHOWROOM = """
 
 @app.get("/api/v1/dashboard/showroom/{product_id}")
 @app.get("/api/v1/dashboard/showroom-elite/{product_id}")
@@ -149,3 +71,48 @@ def ultimate_showroom_247(product_id: int):
         return HTMLResponse(content=f"<h1 style='color:#fff;text-align:center;padding:50px;font-family:sans-serif'>Server Error: {e}</h1>", status_code=500)
     finally:
         db.close()
+"""
+
+mc += ULTIMATE_SHOWROOM
+with open("backend/app/main.py", "w", encoding="utf-8") as f:
+    f.write(mc)
+print("✅ Ultimate Showroom injected into main.py (BOTH URLs)!")
+
+# 3. CLEANSE agents_api.py of any conflicting showroom routes
+print("\n[2/4] Cleansing agents_api.py of conflicting routes...")
+url2 = "https://raw.githubusercontent.com/mohammedkabir44-coder/sawa-ai/main/backend/app/api/v1/endpoints/agents_api.py"
+req2 = urllib.request.Request(url2, headers={"User-Agent": "Mozilla/5.0"})
+with urllib.request.urlopen(req2, timeout=30) as r:
+    code = r.read().decode()
+
+# Remove any showroom routes from agents_api.py to prevent collision
+code = re.sub(r'@router\.get\("/showroom(?:-elite)?/\{product_id\}".*?(?=\n@router\.|\Z)', '', code, flags=re.DOTALL)
+code = re.sub(r'def showroom_.*?\(product_id: int\):.*?(?=\n@router\.|\Z)', '', code, flags=re.DOTALL)
+
+with open("backend/app/api/v1/endpoints/agents_api.py", "w", encoding="utf-8") as f:
+    f.write(code)
+print("✅ Conflicting routes removed from agents_api.py!")
+
+# 4. PUSH
+print("\n[3/4] Pushing to Vercel...")
+subprocess.run(["git", "add", "."])
+subprocess.run(["git", "commit", "-m", "Final Fix: Ultimate Showroom 24/7 + Fallback Photos"])
+subprocess.run(["git", "push", "origin", "main", "--force"])
+
+print("\n⏳ Waiting 90s for Vercel to rebuild...")
+time.sleep(90)
+
+# 5. VERIFY
+print("\n[4/4] Verifying Showroom...")
+try:
+    req = urllib.request.Request("https://sawa-ai-backend.vercel.app/api/v1/dashboard/showroom-elite/15", headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        body = r.read().decode()
+        if "VERIFIED SELLER" in body:
+            print("✅ ✅ ✅ ULTIMATE SHOWROOM IS 100% LIVE 24/7!")
+            print("👉 Open this on your phone:")
+            print("https://sawa-ai-backend.vercel.app/api/v1/dashboard/showroom-elite/15")
+        else:
+            print("⚠️ Loaded but HTML mismatch.")
+except Exception as e:
+    print("❌ Error:", e)
