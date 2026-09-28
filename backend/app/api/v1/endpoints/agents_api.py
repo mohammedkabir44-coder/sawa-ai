@@ -783,7 +783,22 @@ if(TOKEN){enterDash();}else{loadPublicShowroom();initSocial();}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-async function openStats(){document.getElementById('ceoModal').style.display='block';try{var r=await fetch('/api/v1/dashboard/stats');var d=await r.json();if(d.error){alert(d.error);return;}document.getElementById('statCars').innerText=d.total_cars;document.getElementById('statVal').innerText='₦'+Number(d.total_value).toLocaleString();document.getElementById('statComm').innerText='₦'+Number(d.commission).toLocaleString();var ctx=document.getElementById('catChart').getContext('2d');if(window.myChart)window.myChart.destroy();window.myChart=new Chart(ctx,{type:'doughnut',data:{labels:Object.keys(d.categories),datasets:[{data:Object.values(d.categories),backgroundColor:['#10B981','#3B82F6','#F59E0B','#EF4444']}]},options:{plugins:{legend:{labels:{color:'#fff'}}}}});}catch(e){alert('Stats failed: '+e.message);}}
+
+async function openStats(){document.getElementById('ceoModal').style.display='block';
+try{
+  var r;
+  try { r = await fetch('/api/v1/dashboard/stats'); if(!r.ok) throw new Error(); } 
+  catch(e) { r = await fetch('/api/v1/stats'); if(!r.ok) throw new Error(); }
+  var d=await r.json();if(d.error){alert(d.error);return;}
+  document.getElementById('statCars').innerText=d.total_cars;
+  document.getElementById('statVal').innerText='₦'+Number(d.total_value).toLocaleString();
+  document.getElementById('statComm').innerText='₦'+Number(d.commission).toLocaleString();
+  var ctx=document.getElementById('catChart').getContext('2d');
+  if(window.myChart)window.myChart.destroy();
+  window.myChart=new Chart(ctx,{type:'doughnut',data:{labels:Object.keys(d.categories),datasets:[{data:Object.values(d.categories),backgroundColor:['#10B981','#3B82F6','#F59E0B','#EF4444']}]},options:{plugins:{legend:{labels:{color:'#fff'}}}}});
+}catch(e){alert('Stats failed: '+e.message);}
+}
+}}});}catch(e){alert('Stats failed: '+e.message);}}
 </script>
 
 </body>
@@ -3240,3 +3255,19 @@ def debug_first_car(db: Session = Depends(get_db)):
     if p:
         return {"id": p.id, "name": p.name, "url": "/api/v1/dashboard/showroom/" + str(p.id)}
     return {"error": "No cars in database!"}
+
+
+@router.get("/stats")
+@router.get("/dashboard/stats")
+def ceo_stats_router(db: Session = Depends(get_db)):
+    from app.models.product import Product
+    prods = db.query(Product).all()
+    total = sum(float(p.price or 0) for p in prods)
+    cats = {"Luxury":0, "SUVs":0, "Sedans":0, "Trucks":0}
+    for p in prods:
+        n = str(p.name).lower()
+        if any(x in n for x in ["lexus","benz","bmw","porsche","range","gtr"]): cats["Luxury"]+=1
+        elif any(x in n for x in ["suv","highlander","rx3","ml3","pajero","escalade","venza"]): cats["SUVs"]+=1
+        elif any(x in n for x in ["truck","bus","van","sienna","trailer"]): cats["Trucks"]+=1
+        else: cats["Sedans"]+=1
+    return {"total_value": total, "total_cars": len(prods), "categories": cats, "commission": total*0.05}
