@@ -356,6 +356,7 @@ function shareCar() {
     return HTMLResponse(content=html)
 
 @app.get("/")
+@app.get("/")
 @app.get("/api/v1/dashboard/portal")
 def sodangi_hub():
     from fastapi.responses import HTMLResponse
@@ -368,15 +369,21 @@ h1{color:#10B981;font-size:28px;margin-bottom:8px;text-align:center}p{color:#94A
 .btn:active{transform:scale(0.98)}
 .btn-market{border-color:#059669;background:linear-gradient(135deg,#064E3B,#065F46)}
 .btn-admin{border-color:#2563EB;background:linear-gradient(135deg,#1E3A8A,#1D4ED8)}
-.btn-show{border-color:#F59E0B;background:linear-gradient(135deg,#78350F,#92400E)}</style></head>
+.btn-show{border-color:#F59E0B;background:linear-gradient(135deg,#78350F,#92400E)}
+.btn-agents{border-color:#EC4899;background:linear-gradient(135deg,#831843,#BE185D)}
+.btn-analytics{border-color:#F59E0B;background:linear-gradient(135deg,#92400E,#B45309)}
+.btn-agent-login{border-color:#8B5CF6;background:linear-gradient(135deg,#4C1D95,#6D28D9)}
+</style></head>
 <body><h1>🚗 SODANGI MOTORS</h1><p>The Ultimate Automotive Hub</p>
 <div class="container">
 <a href="/api/v1/dashboard/market" class="btn btn-market">🏪 Marketplace (Buy Cars)</a>
 <a href="/api/v1/dashboard/v4-dashboard" class="btn btn-admin">🏢 Admin Dashboard (Sell Cars)</a>
 <a href="/api/v1/dashboard/showroom-elite/15" class="btn btn-show">🚗 Showroom Demo (Car #15)</a>
+<a href="/admin-agents" class="btn btn-agents">👥 Manage Agents (Create Profiles)</a>
+<a href="/admin-analytics" class="btn btn-analytics">📊 Admin Analytics & Tracking</a>
+<a href="/agent-login" class="btn btn-agent-login">👤 Agent Login</a>
 </div></body></html>"""
     return HTMLResponse(content=html)
-
 
 @app.get("/agent-portal")
 def agent_portal_page():
