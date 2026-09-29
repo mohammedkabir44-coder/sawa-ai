@@ -524,6 +524,7 @@ def admin_agents_page():
       var p=document.getElementById("pass").value;
       var m=document.getElementById("msg");
       if(!n||!e||!p){m.innerText="❌ Fill all fields!";m.style.background="#7F1D1D";m.style.display="block";return;}
+if(p.length<8){m.innerText="❌ Password must be at least 8 characters!";m.style.background="#7F1D1D";m.style.display="block";return;}
       m.innerText="⏳ Creating...";m.style.background="#1E3A8A";m.style.display="block";
       try{
         var r=await fetch("/api/v1/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({full_name:n, name:n, email:e, username:e, password:p, role:"agent"})});
