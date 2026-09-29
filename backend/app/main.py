@@ -167,6 +167,11 @@ def ultimate_showroom_247(product_id: int):
     from urllib.parse import quote as _q
     import json as _json
     T = r'''<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__NAME__ | Sodangi Motors</title>
+<meta property="og:title" content="__NAME__ - ₦__PRICE__ | Sodangi Motors">
+<meta property="og:description" content="✅ Verified Seller. Click to view photos and contact seller instantly!">
+<meta property="og:image" content="__FIRST_IMG__">
+<meta property="og:url" content="https://sawa-ai-backend.vercel.app/api/v1/dashboard/showroom-elite/__PID__">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 body{margin:0;background:#0A0F1C;color:#fff;font-family:system-ui,sans-serif;padding-bottom:250px}
 .gal{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#000;scrollbar-width:none}
@@ -212,6 +217,18 @@ function shareCar() {
   else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
 }
 </script>
+
+<script>
+(function(){
+  var pid = __PID__;
+  fetch('/api/v1/track?event=view&pid='+pid).catch(function(){});
+  document.querySelectorAll('.btn-wa, .btn-call').forEach(function(b){
+    b.addEventListener('click', function(){ fetch('/api/v1/track?event=click&pid='+pid).catch(function(){}); });
+  });
+  var oldShare = window.shareCar;
+  window.shareCar = function(){ fetch('/api/v1/track?event=share&pid='+pid).catch(function(){}); if(oldShare) oldShare(); };
+})();
+</script>
 </body></html>'''
     db = SessionLocal()
     try:
@@ -243,7 +260,7 @@ function shareCar() {
             else:
                 gal += '<img src="' + su + '" loading="lazy" alt="">'
         wa = "https://wa.me/2348142969979?text=" + _q("Salam! I am looking at the " + name + " (NGN " + price + ") on Sodangi Motors")
-        out = T.replace("__GALLERY__", gal).replace("__NAME__", name).replace("__PRICE__", price).replace("__WA__", wa)
+        out = T.replace("__GALLERY__", gal).replace("__NAME__", name).replace("__PRICE__", price).replace("__WA__", wa).replace("__FIRST_IMG__", imgs[0] if imgs else "https://images.unsplash.com/photo-1492144534655-ae79c464b2d7?w=1200").replace("__PID__", str(product_id))
         return HTMLResponse(content=out)
     except Exception as e:
         return HTMLResponse(content="<h1 style='color:#fff;text-align:center;padding:50px;font-family:sans-serif'>Server Error: " + str(e) + "</h1>", status_code=500)
@@ -285,6 +302,18 @@ function shareCar() {
   else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
 }
 </script>
+
+<script>
+(function(){
+  var pid = __PID__;
+  fetch('/api/v1/track?event=view&pid='+pid).catch(function(){});
+  document.querySelectorAll('.btn-wa, .btn-call').forEach(function(b){
+    b.addEventListener('click', function(){ fetch('/api/v1/track?event=click&pid='+pid).catch(function(){}); });
+  });
+  var oldShare = window.shareCar;
+  window.shareCar = function(){ fetch('/api/v1/track?event=share&pid='+pid).catch(function(){}); if(oldShare) oldShare(); };
+})();
+</script>
 </body></html>'''
         return HTMLResponse(content=html.replace("__CARS__", _json.dumps(cars)))
     except Exception as e:
@@ -310,6 +339,18 @@ function shareCar() {
   if (navigator.share) { navigator.share({title: document.title, text: t, url: location.href}).catch(function(){}); }
   else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
 }
+</script>
+
+<script>
+(function(){
+  var pid = __PID__;
+  fetch('/api/v1/track?event=view&pid='+pid).catch(function(){});
+  document.querySelectorAll('.btn-wa, .btn-call').forEach(function(b){
+    b.addEventListener('click', function(){ fetch('/api/v1/track?event=click&pid='+pid).catch(function(){}); });
+  });
+  var oldShare = window.shareCar;
+  window.shareCar = function(){ fetch('/api/v1/track?event=share&pid='+pid).catch(function(){}); if(oldShare) oldShare(); };
+})();
 </script>
 </body></html>'''
     return HTMLResponse(content=html)
@@ -383,6 +424,18 @@ function shareCar() {
   else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
 }
 </script>
+
+<script>
+(function(){
+  var pid = __PID__;
+  fetch('/api/v1/track?event=view&pid='+pid).catch(function(){});
+  document.querySelectorAll('.btn-wa, .btn-call').forEach(function(b){
+    b.addEventListener('click', function(){ fetch('/api/v1/track?event=click&pid='+pid).catch(function(){}); });
+  });
+  var oldShare = window.shareCar;
+  window.shareCar = function(){ fetch('/api/v1/track?event=share&pid='+pid).catch(function(){}); if(oldShare) oldShare(); };
+})();
+</script>
 </body></html>'''
     return HTMLResponse(content=html)
 
@@ -427,6 +480,65 @@ def admin_analytics_page():
     </div></div>
     <a href="/admin-agents" class="btn" style="background:#EC4899">👥 Manage Agents</a>
     <a href="/" class="btn" style="background:#334155">🏠 Back to Hub</a>
-    </body></html>'''
+    
+<script>
+(function(){
+  var pid = __PID__;
+  fetch('/api/v1/track?event=view&pid='+pid).catch(function(){});
+  document.querySelectorAll('.btn-wa, .btn-call').forEach(function(b){
+    b.addEventListener('click', function(){ fetch('/api/v1/track?event=click&pid='+pid).catch(function(){}); });
+  });
+  var oldShare = window.shareCar;
+  window.shareCar = function(){ fetch('/api/v1/track?event=share&pid='+pid).catch(function(){}); if(oldShare) oldShare(); };
+})();
+</script>
+</body></html>'''
     html = html.replace("__VIEWS__", str(stats["views"])).replace("__CLICKS__", str(stats["clicks"])).replace("__SHARES__", str(stats["shares"]))
+    return HTMLResponse(content=html)
+
+@app.get("/admin-agents")
+def admin_agents_page():
+    from fastapi.responses import HTMLResponse
+    html = '''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manage Agents</title>
+    <style>body{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;padding:20px}.card{background:#1E293B;padding:20px;border-radius:12px;margin-bottom:16px;border:1px solid #334155}h2{color:#10B981;margin-top:0}label{display:block;margin-top:12px;font-size:13px;color:#94A3B8}input{width:100%;padding:12px;border-radius:8px;border:1px solid #334155;background:#0F172A;color:#fff;font-size:16px;box-sizing:border-box;margin-top:4px}.btn{width:100%;padding:14px;margin-top:16px;background:#8B5CF6;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:16px;cursor:pointer}.msg{padding:10px;border-radius:8px;margin-top:10px;text-align:center}</style></head>
+    <body><h1>👥 Agent Manager</h1>
+    <div class="card"><h2>Create New Agent Profile</h2>
+    <label>Full Name</label><input id="name" placeholder="Musa Abdullahi">
+    <label>Email (Username)</label><input id="email" placeholder="agent@sodangi.com">
+    <label>Password</label><input id="pass" type="password" placeholder="Min 6 characters">
+    <button class="btn" onclick="createAgent()">🚀 Create Agent Profile</button>
+    <div id="msg" class="msg" style="display:none"></div>
+    </div>
+    <a href="/admin-analytics" style="display:block;text-align:center;color:#3B82F6;margin-top:20px">← Back to Analytics</a>
+    <script>
+    async function createAgent(){
+      var n=document.getElementById("name").value;
+      var e=document.getElementById("email").value;
+      var p=document.getElementById("pass").value;
+      var m=document.getElementById("msg");
+      if(!n||!e||!p){m.innerText="❌ Fill all fields!";m.style.background="#7F1D1D";m.style.display="block";return;}
+      m.innerText="⏳ Creating...";m.style.background="#1E3A8A";m.style.display="block";
+      try{
+        var r=await fetch("/api/v1/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({full_name:n,email:e,password:p,role:"agent"})});
+        var d=await r.json();
+        if(d.access_token || d.id || d.email){
+          m.innerHTML="✅ Agent Created!<br><b>Email:</b> "+e+"<br><b>Password:</b> "+p+"<br><br>Give these details to your agent to login at <a href='/agent-login' style='color:#10B981'>/agent-login</a>";
+          m.style.background="#065F46";
+          document.getElementById("name").value="";document.getElementById("email").value="";document.getElementById("pass").value="";
+        } else { m.innerText="❌ Error: "+(d.detail||"Unknown");m.style.background="#7F1D1D"; }
+      }catch(ex){ m.innerText="❌ "+ex.message;m.style.background="#7F1D1D"; }
+    }
+    </script>
+<script>
+(function(){
+  var pid = __PID__;
+  fetch('/api/v1/track?event=view&pid='+pid).catch(function(){});
+  document.querySelectorAll('.btn-wa, .btn-call').forEach(function(b){
+    b.addEventListener('click', function(){ fetch('/api/v1/track?event=click&pid='+pid).catch(function(){}); });
+  });
+  var oldShare = window.shareCar;
+  window.shareCar = function(){ fetch('/api/v1/track?event=share&pid='+pid).catch(function(){}); if(oldShare) oldShare(); };
+})();
+</script>
+</body></html>'''
     return HTMLResponse(content=html)
