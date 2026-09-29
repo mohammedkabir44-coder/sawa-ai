@@ -385,3 +385,48 @@ function shareCar() {
 </script>
 </body></html>'''
     return HTMLResponse(content=html)
+
+
+@app.get("/api/v1/track")
+def track_event(event: str, pid: int = 0, aid: int = 0):
+    from app.core.database import engine
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS site_analytics(id SERIAL PRIMARY KEY, event TEXT, pid INT, aid INT, created_at TIMESTAMP DEFAULT NOW())"))
+            conn.commit()
+            conn.execute(text("INSERT INTO site_analytics(event,pid,aid) VALUES(:e,:p,:a)"), {"e":event,"p":pid,"a":aid})
+            conn.commit()
+        return {"status":"ok"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/admin-analytics")
+def admin_analytics_page():
+    from app.core.database import engine
+    from sqlalchemy import text
+    from fastapi.responses import HTMLResponse
+    stats = {"views":0, "clicks":0, "shares":0}
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS site_analytics(id SERIAL PRIMARY KEY, event TEXT, pid INT, aid INT, created_at TIMESTAMP DEFAULT NOW())"))
+            conn.commit()
+            rows = conn.execute(text("SELECT event, COUNT(*) FROM site_analytics GROUP BY event")).fetchall()
+            for r in rows:
+                if r[0] == 'view': stats["views"] = r[1]
+                elif r[0] == 'click': stats["clicks"] = r[1]
+                elif r[0] == 'share': stats["shares"] = r[1]
+    except: pass
+    html = r'''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Analytics</title>
+    <style>body{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;padding:20px}.card{background:#1E293B;padding:20px;border-radius:12px;margin-bottom:16px;border:1px solid #334155}h2{color:#10B981;margin-top:0}.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.stat{background:#0F172A;padding:16px;border-radius:10px;text-align:center}.stat h3{margin:0;font-size:28px;color:#F59E0B}.stat p{margin:4px 0 0;font-size:12px;color:#94A3B8}.btn{display:inline-block;background:#3B82F6;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:800;margin-top:20px;margin-right:10px}</style></head>
+    <body><h1>📊 Admin Analytics & Tracking</h1>
+    <div class="card"><h2>Live Site Performance</h2><div class="grid">
+    <div class="stat"><h3>__VIEWS__</h3><p>👁️ Total Page Views</p></div>
+    <div class="stat"><h3>__CLICKS__</h3><p>👆 WhatsApp/Call Clicks</p></div>
+    <div class="stat"><h3>__SHARES__</h3><p>🚀 Social Media Shares</p></div>
+    </div></div>
+    <a href="/admin-agents" class="btn" style="background:#EC4899">👥 Manage Agents</a>
+    <a href="/" class="btn" style="background:#334155">🏠 Back to Hub</a>
+    </body></html>'''
+    html = html.replace("__VIEWS__", str(stats["views"])).replace("__CLICKS__", str(stats["clicks"])).replace("__SHARES__", str(stats["shares"]))
+    return HTMLResponse(content=html)
