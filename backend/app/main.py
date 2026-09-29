@@ -9,14 +9,21 @@ if not os.getenv("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = "sk-dummy-key"
 
 app = FastAPI()
-
-@app.get("/showroom/{product_id}")
-@app.get("/api/v1/showroom/{product_id}")
-@app.get("/dashboard/showroom/{product_id}")
-def showroom_teleporter(product_id: int):
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=f"/api/v1/dashboard/showroom-elite/{product_id}", status_code=307)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+@app.middleware("http")
+async def catch_all_showroom_middleware(request: Request, call_next):
+    import re as _re_mw
+    from starlette.responses import RedirectResponse
+    path = request.url.path
+    # Catch ANY URL that has 'showroom' or 'showroom-elite' followed by a number
+    m = _re_mw.search(r'showroom(?:-elite)?/(\d+)', path)
+    if m and '/api/v1/dashboard/showroom-elite/' not in path:
+        pid = m.group(1)
+        return RedirectResponse(url=f"/api/v1/dashboard/showroom-elite/{pid}", status_code=307)
+    
+    return await call_next(request)
+
 
 # CATCHES ALL 500 ERRORS AND PRINTS THE TRACEBACK
 @app.exception_handler(Exception)
