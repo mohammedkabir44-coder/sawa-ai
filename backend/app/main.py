@@ -526,13 +526,13 @@ def admin_agents_page():
       if(!n||!e||!p){m.innerText="❌ Fill all fields!";m.style.background="#7F1D1D";m.style.display="block";return;}
       m.innerText="⏳ Creating...";m.style.background="#1E3A8A";m.style.display="block";
       try{
-        var r=await fetch("/api/v1/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({full_name:n,email:e,password:p,role:"agent"})});
+        var r=await fetch("/api/v1/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({full_name:n, name:n, email:e, username:e, password:p, role:"agent"})});
         var d=await r.json();
         if(d.access_token || d.id || d.email){
           m.innerHTML="✅ Agent Created!<br><b>Email:</b> "+e+"<br><b>Password:</b> "+p+"<br><br>Give these details to your agent to login at <a href='/agent-login' style='color:#10B981'>/agent-login</a>";
           m.style.background="#065F46";
           document.getElementById("name").value="";document.getElementById("email").value="";document.getElementById("pass").value="";
-        } else { m.innerText="❌ Error: "+(d.detail||"Unknown");m.style.background="#7F1D1D"; }
+        } else { m.innerText="❌ Error: "+(typeof d.detail==="object"?JSON.stringify(d.detail):(d.detail||"Unknown"));m.style.background="#7F1D1D"; }
       }catch(ex){ m.innerText="❌ "+ex.message;m.style.background="#7F1D1D"; }
     }
     </script>
