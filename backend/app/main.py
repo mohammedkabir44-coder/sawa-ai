@@ -203,6 +203,15 @@ function copyCap(){
   }else{prompt("Copy this caption:",t);}
 }
 </script>
+
+<button onclick="shareCar()" style="position:fixed;bottom:180px;left:20px;right:20px;background:#8B5CF6;color:#fff;padding:14px;border-radius:12px;border:none;font-weight:800;font-size:15px;text-align:center;z-index:101;box-shadow:0 4px 12px rgba(139,92,246,0.4)">📱 Share to Social Media</button>
+<script>
+function shareCar() {
+  var t = document.title + " - " + document.querySelector('.price').innerText + "\n" + location.href;
+  if (navigator.share) { navigator.share({title: document.title, text: t, url: location.href}).catch(function(){}); }
+  else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
+}
+</script>
 </body></html>'''
     db = SessionLocal()
     try:
@@ -267,7 +276,16 @@ def forced_market_route():
         <style>body{margin:0;background:#F4F6F8;font-family:sans-serif;padding-bottom:60px}.feed{max-width:600px;margin:0 auto;padding:12px}.card{background:#fff;border-radius:12px;overflow:hidden;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.05);cursor:pointer}.gal{height:220px;background:#000}.gal img{width:100%;height:100%;object-fit:cover}.info{padding:12px}.price{color:#059669;font-size:20px;font-weight:900}.title{font-size:16px;font-weight:700;margin:4px 0}.badge{background:#DCFCE7;color:#059669;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;display:inline-block;margin-bottom:6px}.nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #eee;display:flex;padding:10px 0}.nav a{flex:1;text-align:center;text-decoration:none;color:#64748B;font-size:12px;font-weight:700}.nav a.on{color:#059669}</style>
         </head><body><div style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #eee;position:sticky;top:0;z-index:10"><h2 style="margin:0;color:#059669">🚗 SODANGI MOTORS</h2><p style="margin:4px 0 0;font-size:12px;color:#64748B">Verified Dealers | Premium Cars</p></div><div class="feed" id="feed"></div>
         <nav class="nav"><a class="on">🏠 Home</a><a href="/api/v1/dashboard/v4-dashboard">🏷️ Sell Car</a></nav>
-        <script>var CARS=__CARS__;var box=document.getElementById("feed");if(!CARS.length){box.innerHTML="<p style='text-align:center;color:#64748B;padding:40px'>No cars available right now.</p>";}CARS.forEach(function(c){var img=c.imgs&&c.imgs.length?c.imgs[0]:"https://images.unsplash.com/photo-1492144534655-ae79c464b2d7?w=800";var d=document.createElement("div");d.className="card";d.innerHTML='<div class="gal"><img src="'+img+'"></div><div class="info"><span class="badge">✅ VERIFIED SELLER</span><div class="price">₦'+Number(c.price).toLocaleString()+'</div><div class="title">'+c.name+'</div></div>';d.onclick=function(){location.href="/api/v1/dashboard/showroom-elite/"+c.id};box.appendChild(d)});</script></body></html>'''
+        <script>var CARS=__CARS__;var box=document.getElementById("feed");if(!CARS.length){box.innerHTML="<p style='text-align:center;color:#64748B;padding:40px'>No cars available right now.</p>";}CARS.forEach(function(c){var img=c.imgs&&c.imgs.length?c.imgs[0]:"https://images.unsplash.com/photo-1492144534655-ae79c464b2d7?w=800";var d=document.createElement("div");d.className="card";d.innerHTML='<div class="gal"><img src="'+img+'"></div><div class="info"><span class="badge">✅ VERIFIED SELLER</span><div class="price">₦'+Number(c.price).toLocaleString()+'</div><div class="title">'+c.name+'</div></div>';d.onclick=function(){location.href="/api/v1/dashboard/showroom-elite/"+c.id};box.appendChild(d)});</script>
+<button onclick="shareCar()" style="position:fixed;bottom:180px;left:20px;right:20px;background:#8B5CF6;color:#fff;padding:14px;border-radius:12px;border:none;font-weight:800;font-size:15px;text-align:center;z-index:101;box-shadow:0 4px 12px rgba(139,92,246,0.4)">📱 Share to Social Media</button>
+<script>
+function shareCar() {
+  var t = document.title + " - " + document.querySelector('.price').innerText + "\n" + location.href;
+  if (navigator.share) { navigator.share({title: document.title, text: t, url: location.href}).catch(function(){}); }
+  else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
+}
+</script>
+</body></html>'''
         return HTMLResponse(content=html.replace("__CARS__", _json.dumps(cars)))
     except Exception as e:
         return HTMLResponse(content=f"<h1 style='color:#fff;background:#0A0F1C;padding:40px;text-align:center;font-family:sans-serif'>Market Error: {e}</h1>")
@@ -284,7 +302,16 @@ def forced_v4_route():
     <p style="color:#94A3B8;margin-bottom:30px">Your inventory system is live and connected.</p>
     <a href="/api/v1/dashboard/market" style="display:block;background:#1E293B;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:800;margin-bottom:12px">👉 View Live Marketplace</a>
     <p style="font-size:12px;color:#64748B;margin-top:40px">Upload new cars via your API endpoints or Admin UI.</p>
-    </body></html>'''
+    
+<button onclick="shareCar()" style="position:fixed;bottom:180px;left:20px;right:20px;background:#8B5CF6;color:#fff;padding:14px;border-radius:12px;border:none;font-weight:800;font-size:15px;text-align:center;z-index:101;box-shadow:0 4px 12px rgba(139,92,246,0.4)">📱 Share to Social Media</button>
+<script>
+function shareCar() {
+  var t = document.title + " - " + document.querySelector('.price').innerText + "\n" + location.href;
+  if (navigator.share) { navigator.share({title: document.title, text: t, url: location.href}).catch(function(){}); }
+  else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
+}
+</script>
+</body></html>'''
     return HTMLResponse(content=html)
 
 @app.get("/")
@@ -347,5 +374,14 @@ async function load(){
   }catch(e){ box.innerHTML="<p style='text-align:center;color:#EF4444'>"+e.message+" <a href='/agent-login' style='color:#10B981'>Login again</a></p>"; }
 }
 load();
-</script></body></html>'''
+</script>
+<button onclick="shareCar()" style="position:fixed;bottom:180px;left:20px;right:20px;background:#8B5CF6;color:#fff;padding:14px;border-radius:12px;border:none;font-weight:800;font-size:15px;text-align:center;z-index:101;box-shadow:0 4px 12px rgba(139,92,246,0.4)">📱 Share to Social Media</button>
+<script>
+function shareCar() {
+  var t = document.title + " - " + document.querySelector('.price').innerText + "\n" + location.href;
+  if (navigator.share) { navigator.share({title: document.title, text: t, url: location.href}).catch(function(){}); }
+  else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
+}
+</script>
+</body></html>'''
     return HTMLResponse(content=html)

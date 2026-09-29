@@ -1,7 +1,7 @@
-﻿import subprocess, time, urllib.request, ast
+﻿import subprocess, time, urllib.request, ast, json
 
 print("="*60)
-print("🛡️ BULLETPROOF: SOCIAL SHARE + AGENT PORTAL")
+print("🛡️ BULLETPROOF: FIXED SHARE BUTTON + PORTAL ROUTE")
 print("="*60)
 
 url = "https://raw.githubusercontent.com/mohammedkabir44-coder/sawa-ai/main/backend/app/main.py"
@@ -9,31 +9,30 @@ req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
 with urllib.request.urlopen(req, timeout=30) as r:
     mc = r.read().decode()
 
-# 1. INJECT SOCIAL SHARE BUTTON (Direct String Replacement)
-old_closing = '''<a href="/api/v1/dashboard/market" class="btn-agent">🏪 Back to Marketplace</a>
-        </div></body></html>'''
+# 1. FIX SHARE BUTTON (Inject floating button before </body>)
+SHARE_INJECTION = """
+<button onclick="shareCar()" style="position:fixed;bottom:180px;left:20px;right:20px;background:#8B5CF6;color:#fff;padding:14px;border-radius:12px;border:none;font-weight:800;font-size:15px;text-align:center;z-index:101;box-shadow:0 4px 12px rgba(139,92,246,0.4)">📱 Share to Social Media</button>
+<script>
+function shareCar() {
+  var t = document.title + " - " + document.querySelector('.price').innerText + "\\n" + location.href;
+  if (navigator.share) { navigator.share({title: document.title, text: t, url: location.href}).catch(function(){}); }
+  else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
+}
+</script>
+"""
 
-new_closing = '''<a href="/api/v1/dashboard/market" class="btn-agent">🏪 Back to Marketplace</a>
-          <button onclick="shareCar()" style="background:#8B5CF6;color:#fff;padding:14px;border-radius:12px;border:none;font-weight:800;font-size:15px;text-align:center;width:100%">📱 Share to Social Media</button>
-        </div>
-        <script>
-        function shareCar() {
-          var t = document.title + " - " + document.querySelector('.price').innerText + "\\n" + location.href;
-          if (navigator.share) { navigator.share({title: document.title, text: t, url: location.href}).catch(function(){}); }
-          else { navigator.clipboard.writeText(t); alert("Link copied! Share on FB, X, WhatsApp."); }
-        }
-        </script>
-        </body></html>'''
-
-if "shareCar" not in mc and old_closing in mc:
-    mc = mc.replace(old_closing, new_closing)
-    print("✅ Social Share Button injected into Showroom!")
-elif "shareCar" in mc:
-    print("ℹ️ Social Share Button already exists.")
+if "function shareCar()" not in mc:
+    # Find the end of the showroom HTML template
+    end_tag = "</body></html>'''"
+    if end_tag in mc:
+        mc = mc.replace(end_tag, SHARE_INJECTION + end_tag)
+        print("✅ Social Share Button injected as floating button!")
+    else:
+        print("⚠️ Could not find </body></html>''' to inject Share Button.")
 else:
-    print("⚠️ Could not find showroom closing tags for Share Button.")
+    print("ℹ️ Social Share Button already exists.")
 
-# 2. INJECT AGENT PORTAL (Perfectly Escaped)
+# 2. FIX AGENT PORTAL (Inject early in the file to ensure registration)
 PORTAL_ROUTE = """
 
 @app.get("/agent-portal")
@@ -78,8 +77,15 @@ load();
 """
 
 if "def agent_portal_page():" not in mc:
-    mc += PORTAL_ROUTE
-    print("✅ Agent Portal route appended perfectly!")
+    # Inject right after the CORS middleware setup so it registers early
+    insert_idx = mc.find("app.add_middleware(CORSMiddleware")
+    if insert_idx != -1:
+        end_of_cors = mc.find(")", insert_idx) + 1
+        mc = mc[:end_of_cors] + PORTAL_ROUTE + mc[end_of_cors:]
+        print("✅ Agent Portal route injected EARLY for guaranteed registration!")
+    else:
+        mc = PORTAL_ROUTE + mc
+        print("✅ Agent Portal route prepended!")
 else:
     print("ℹ️ Agent Portal already exists.")
 
@@ -94,13 +100,13 @@ with open("backend/app/main.py", "w", encoding="utf-8") as f:
     f.write(mc)
 
 subprocess.run(["git", "add", "."])
-subprocess.run(["git", "commit", "-m", "Bulletproof: Social Share + Agent Portal"])
+subprocess.run(["git", "commit", "-m", "Fix: Floating Share Button + Early Portal Registration"])
 subprocess.run(["git", "push", "origin", "main", "--force"])
 
-print("\n⏳ Waiting 90s for Vercel to compile...")
-time.sleep(90)
+print("\n⏳ Waiting 120s for Vercel to fully compile (large file)...")
+time.sleep(120)
 
-print("\n🔍 Testing new routes...")
+print("\n🔍 Testing live routes...")
 for path in ["/agent-portal", "/api/v1/dashboard/showroom-elite/15"]:
     try:
         req = urllib.request.Request("https://sawa-ai-backend.vercel.app" + path, headers={"User-Agent": "Mozilla/5.0"})
@@ -108,8 +114,8 @@ for path in ["/agent-portal", "/api/v1/dashboard/showroom-elite/15"]:
             body = r.read().decode()
             if "My Showroom" in body:
                 print(f"✅ {path} IS LIVE (Agent Portal)!")
-            elif "Share to Social Media" in body:
-                print(f"✅ {path} IS LIVE (Social Share Button Found)!")
+            elif "shareCar" in body:
+                print(f"✅ {path} IS LIVE (Share Button Found)!")
             else:
                 print(f"⚠️ {path} loaded but mismatch.")
     except Exception as e:
