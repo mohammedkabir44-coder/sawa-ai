@@ -30,10 +30,7 @@ async def catch_all_showroom_middleware(request: Request, call_next):
 async def catch_all(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"error": str(exc), "trace": traceback.format_exc()})
 
-@app.get("/", include_in_schema=False)
-def root_market():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/api/v1/dashboard/market")
+
 
 try:
     from app.api.v1.api import api_router
@@ -288,4 +285,26 @@ def forced_v4_route():
     <a href="/api/v1/dashboard/market" style="display:block;background:#1E293B;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:800;margin-bottom:12px">👉 View Live Marketplace</a>
     <p style="font-size:12px;color:#64748B;margin-top:40px">Upload new cars via your API endpoints or Admin UI.</p>
     </body></html>'''
+    return HTMLResponse(content=html)
+
+@app.get("/")
+@app.get("/api/v1/dashboard/portal")
+def sodangi_hub():
+    from fastapi.responses import HTMLResponse
+    html = """<!DOCTYPE html>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sodangi Hub</title>
+<style>body{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;box-sizing:border-box}
+h1{color:#10B981;font-size:28px;margin-bottom:8px;text-align:center}p{color:#94A3B8;margin-bottom:30px;text-align:center}
+.container{display:flex;flex-direction:column;gap:16px;width:100%;max-width:400px}
+.btn{display:flex;align-items:center;justify-content:center;gap:12px;background:#1E293B;color:#fff;padding:20px;border-radius:16px;text-decoration:none;font-weight:800;font-size:18px;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:transform 0.1s}
+.btn:active{transform:scale(0.98)}
+.btn-market{border-color:#059669;background:linear-gradient(135deg,#064E3B,#065F46)}
+.btn-admin{border-color:#2563EB;background:linear-gradient(135deg,#1E3A8A,#1D4ED8)}
+.btn-show{border-color:#F59E0B;background:linear-gradient(135deg,#78350F,#92400E)}</style></head>
+<body><h1>🚗 SODANGI MOTORS</h1><p>The Ultimate Automotive Hub</p>
+<div class="container">
+<a href="/api/v1/dashboard/market" class="btn btn-market">🏪 Marketplace (Buy Cars)</a>
+<a href="/api/v1/dashboard/v4-dashboard" class="btn btn-admin">🏢 Admin Dashboard (Sell Cars)</a>
+<a href="/api/v1/dashboard/showroom-elite/15" class="btn btn-show">🚗 Showroom Demo (Car #15)</a>
+</div></body></html>"""
     return HTMLResponse(content=html)
