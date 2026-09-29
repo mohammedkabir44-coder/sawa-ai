@@ -10,6 +10,12 @@ if not os.getenv("OPENAI_API_KEY"):
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+try:
+    from app.agent_login import router as login_router
+    app.include_router(login_router)
+except Exception as e:
+    pass
+
 
 @app.middleware("http")
 async def catch_all_showroom_middleware(request: Request, call_next):

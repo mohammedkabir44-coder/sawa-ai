@@ -1,20 +1,12 @@
-﻿import subprocess, time, urllib.request, ast
 
-print("="*60)
-print("🔓 INJECTING THE MISSING AGENT LOGIN PAGE")
-print("="*60)
+from fastapi import APIRouter
+from fastapi.responses import HTMLResponse
 
-url = "https://raw.githubusercontent.com/mohammedkabir44-coder/sawa-ai/main/backend/app/main.py"
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-with urllib.request.urlopen(req, timeout=30) as r:
-    mc = r.read().decode()
+router = APIRouter()
 
-LOGIN_ROUTE = '''
-
-@app.get("/agent-login")
+@router.get("/agent-login")
 def agent_login_page():
-    from fastapi.responses import HTMLResponse
-    html = """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent Login</title>
+    html = r'''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent Login</title>
 <style>body{margin:0;background:#0A0F1C;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;box-sizing:border-box}
 .box{background:#1E293B;padding:30px;border-radius:16px;width:100%;max-width:400px;border:1px solid #334155}
 h2{color:#10B981;margin-top:0;text-align:center}
@@ -46,42 +38,5 @@ async function login(){
     } else { document.getElementById("err").innerText="Login failed: "+(d.detail||"Check credentials"); }
   }catch(ex){ document.getElementById("err").innerText="Error: "+ex.message; }
 }
-</script></body></html>"""
+</script></body></html>'''
     return HTMLResponse(content=html)
-'''
-
-if "def agent_login_page():" not in mc:
-    mc += LOGIN_ROUTE
-    print("✅ Agent Login Page forcefully appended to main.py!")
-else:
-    print("ℹ️ Agent Login Page already exists.")
-
-try:
-    ast.parse(mc)
-    print("✅ Syntax is PERFECT.")
-except SyntaxError as e:
-    print(f"❌ Syntax Error: {e.msg}")
-
-with open("backend/app/main.py", "w", encoding="utf-8") as f:
-    f.write(mc)
-
-subprocess.run(["git", "add", "."])
-subprocess.run(["git", "commit", "-m", "Fix: Inject missing Agent Login Page"])
-subprocess.run(["git", "push", "origin", "main", "--force"])
-
-print("\n⏳ Waiting 90s for Vercel to compile...")
-time.sleep(90)
-
-print("\n🔍 Testing Agent Login Route...")
-try:
-    req = urllib.request.Request("https://sawa-ai-backend.vercel.app/agent-login", headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        body = r.read().decode()
-        if "Agent Portal Login" in body:
-            print("✅ ✅ ✅ AGENT LOGIN PAGE IS 100% LIVE!")
-            print("\n👉 Open this in an INCOGNITO window on your phone:")
-            print("https://sawa-ai-backend.vercel.app/agent-login")
-        else:
-            print("⚠️ Route loaded but HTML mismatch.")
-except Exception as e:
-    print(f"❌ Error: {e}")
