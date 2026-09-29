@@ -602,3 +602,16 @@ async function login(){
 }
 </script></body></html>"""
     return HTMLResponse(content=html)
+
+
+@app.get("/debug-imports")
+def debug_imports():
+    import traceback
+    try:
+        from app.agent_dashboard import router as dashboard_router
+        routes = [r.path for r in dashboard_router.routes]
+        return {"status": "SUCCESS", "message": "agent_dashboard.py loaded perfectly!", "routes": routes}
+    except Exception as e:
+        error_html = f"<h1 style='color:red'>IMPORT CRASHED!</h1><pre style='background:#111;color:#0f0;padding:20px;border-radius:10px;overflow:auto'>{traceback.format_exc()}</pre>"
+        from fastapi.responses import HTMLResponse
+        return HTMLResponse(content=error_html, status_code=500)
