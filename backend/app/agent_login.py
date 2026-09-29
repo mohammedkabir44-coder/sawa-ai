@@ -34,7 +34,7 @@ async function login(){
       localStorage.setItem("sodangi_token", d.access_token);
       localStorage.setItem("sodangi_role", d.role||"agent");
       localStorage.setItem("sodangi_name", d.full_name||e);
-      location.href="/agent-portal";
+      location.href="/agent-dashboard";
     } else { document.getElementById("err").innerText="Login failed: "+(d.detail||"Check credentials"); }
   }catch(ex){ document.getElementById("err").innerText="Error: "+ex.message; }
 }

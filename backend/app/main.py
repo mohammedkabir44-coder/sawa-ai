@@ -11,6 +11,12 @@ if not os.getenv("OPENAI_API_KEY"):
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 try:
+    from app.agent_dashboard import router as dashboard_router
+    app.include_router(dashboard_router)
+except Exception as e:
+    print("Router import failed:", e)
+
+try:
     from app.agent_login import router as login_router
     app.include_router(login_router)
 except Exception as e:
@@ -387,6 +393,7 @@ h1{color:#10B981;font-size:28px;margin-bottom:8px;text-align:center}p{color:#94A
 <a href="/api/v1/dashboard/showroom-elite/15" class="btn btn-show">🚗 Showroom Demo (Car #15)</a>
 <a href="/admin-agents" class="btn btn-agents">👥 Manage Agents (Create Profiles)</a>
 <a href="/admin-analytics" class="btn btn-analytics">📊 Admin Analytics & Tracking</a>
+<a href="/agent-dashboard" class="btn" style="background:#8B5CF6;border-color:#8B5CF6">🏢 Agent Dashboard (My Command Center)</a>
 <a href="/agent-login" class="btn btn-agent-login">👤 Agent Login</a>
 </div></body></html>"""
     return HTMLResponse(content=html)
