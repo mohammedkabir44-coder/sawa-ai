@@ -620,7 +620,7 @@ def debug_imports():
 @app.get("/agent-dashboard")
 def agent_dashboard_direct():
     from fastapi.responses import HTMLResponse
-    html = r\'\'\'<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent Command Center</title>
+    html = """<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent Command Center</title>
 <style>
 :root{--bg:#0A0F1C;--card:#1E293B;--accent:#10B981;--text:#fff;--muted:#94A3B8}
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
@@ -754,7 +754,7 @@ async function delCar(id){if(!confirm("Delete this car?"))return;try{await api("
 function editCar(id){alert("Edit feature coming soon!")}
 function logout(){localStorage.clear();location.href="/agent-login";}
 loadProfile();loadCars();
-</script></body></html>\'\'\'
+</script></body></html>"""
     return HTMLResponse(content=html)
 
 @app.get("/agent-api/profile")
