@@ -394,7 +394,7 @@ h1{color:#10B981;font-size:28px;margin-bottom:8px;text-align:center}p{color:#94A
 <a href="/admin-agents" class="btn btn-agents">👥 Manage Agents (Create Profiles)</a>
 <a href="/admin-analytics" class="btn btn-analytics">📊 Admin Analytics & Tracking</a>
 <a href="/agent-dashboard" class="btn" style="background:#8B5CF6;border-color:#8B5CF6">🏢 Agent Dashboard (My Command Center)</a>
-<a href="/agent-login" class="btn btn-agent-login">👤 Agent Login</a>
+<a href="/agent" class="btn btn-agent-login" style="background:linear-gradient(135deg,#4C1D95,#6D28D9)">👤 Agent Portal (Staff Login)</a>
 </div></body></html>"""
     return HTMLResponse(content=html)
 
@@ -813,3 +813,11 @@ def delete_car_direct(cid: int):
         return {"status": "ok"}
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/agent")
+@app.get("/staff")
+@app.get("/login")
+def agent_public_redirect():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/agent-login")
