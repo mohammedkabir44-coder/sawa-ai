@@ -135,24 +135,51 @@ function loadCars(){
     if(!cars.length){grid.innerHTML='<p style="color:var(--muted);text-align:center">No cars in inventory.</p>';return;}
     var html='';
     cars.forEach(function(c){
-      var img=c.images&&c.images.length?c.images[0]:'';
-      var badge=c.status==='sold'?'<span class="badge badge-sold">SOLD</span>':'<span class="badge badge-avail">AVAILABLE</span>';
-      var btnText=c.status==='sold'?'Mark Available':'Mark Sold';
-      var act=c.status==='sold'?'avail':'sold';
-      html+='<div class="car-card">'+
-        '<img src="'+img+'" onerror="this.style.display='none'">'+
-        '<div class="car-info">'+badge+
-        '<h3>'+c.name+'</h3>'+
-        '<p>₦'+Number(c.price).toLocaleString()+'</p>'+
-        '<div class="actions">'+
-        '<button style="background:var(--warning);color:#000" onclick="doAct('/dealer-action?act='+act+'&id='+c.id+'')">'+btnText+'</button>'+
-        '<button style="background:var(--danger);color:#fff" onclick="doAct('/dealer-action?act=del&id='+c.id+'')">Delete</button>'+
-        '<button style="background:#3B82F6;color:#fff" onclick="shareCar('+c.id+')">Share</button>'+
-        '<button style="background:#EC4899;color:#fff" onclick="doAct('/dealer-action?act=like&id='+c.id+'')">❤ '+(c.likes||0)+'</button>'+
-        '<button style="background:#8B5CF6;color:#fff" onclick="printAgreement('+c.id+')">📄 Agreement</button>'+
-        '</div></div></div>';
+      var img=c.images&&c.images.length?c.images[0]:"";
+      var badge=c.status==="sold"?"<span class=\"badge badge-sold\">SOLD</span>":"<span class=\"badge badge-avail\">AVAILABLE</span>";
+      var btnText=c.status==="sold"?"Mark Available":"Mark Sold";
+      var act=c.status==="sold"?"avail":"sold";
+      var card=document.createElement("div");
+      card.className="car-card";
+      var imgEl=document.createElement("img");
+      imgEl.src=img;
+      imgEl.onerror=function(){this.remove();};
+      var info=document.createElement("div");
+      info.className="car-info";
+      info.innerHTML=badge+"<h3>"+c.name+"</h3><p>\u20A6"+Number(c.price).toLocaleString()+"</p>";
+      var actions=document.createElement("div");
+      actions.className="actions";
+      var btn1=document.createElement("button");
+      btn1.textContent=btnText;
+      btn1.style.cssText="background:#F59E0B;color:#000";
+      btn1.onclick=function(){doAct("/dealer-action?act="+act+"&id="+c.id);};
+      var btn2=document.createElement("button");
+      btn2.textContent="Delete";
+      btn2.style.cssText="background:#EF4444;color:#fff";
+      btn2.onclick=function(){doAct("/dealer-action?act=del&id="+c.id);};
+      var btn3=document.createElement("button");
+      btn3.textContent="Share";
+      btn3.style.cssText="background:#3B82F6;color:#fff";
+      btn3.onclick=function(){shareCar(c.id);};
+      var btn4=document.createElement("button");
+      btn4.textContent="\u2764 "+(c.likes||0);
+      btn4.style.cssText="background:#EC4899;color:#fff";
+      btn4.onclick=function(){doAct("/dealer-action?act=like&id="+c.id);};
+      var btn5=document.createElement("button");
+      btn5.textContent="\ud83d\udcc4 Agreement";
+      btn5.style.cssText="background:#8B5CF6;color:#fff";
+      btn5.onclick=function(){printAgreement(c.id);};
+      actions.appendChild(btn1);
+      actions.appendChild(btn2);
+      actions.appendChild(btn3);
+      actions.appendChild(btn4);
+      actions.appendChild(btn5);
+      info.appendChild(actions);
+      card.appendChild(imgEl);
+      card.appendChild(info);
+      grid.appendChild(card);
     });
-    grid.innerHTML=html;
+    grid.innerHTML=grid.innerHTML;
   }).catch(function(e){
       grid.innerHTML='<div style="text-align:center;padding:20px"><p style="color:#EF4444;font-weight:bold">Failed to load inventory: ' + e.message + '</p><button onclick="loadCars()" style="margin-top:15px;padding:12px 24px;background:#EF4444;color:#fff;border:none;border-radius:8px;font-weight:bold">🔄 Retry Loading</button></div>';
     });
@@ -1146,7 +1173,7 @@ async function loadCars(){
       var img=c.images&&c.images.length?c.images[0]:'';
       var badge=c.status==='sold'?'<span class=\'badge badge-sold\'>SOLD</span>':'<span class=\'badge badge-avail\'>AVAILABLE</span>';
       var btnText=c.status==='sold'?'Mark Available':'Mark Sold';
-      grid.innerHTML+='<div class=\'car-card\'><img src=\''+img+'\' onerror=\'this.style.display="none"\'><div class=\'car-info\'>'+badge+'<h3>'+c.name+'</h3><p>₦'+Number(c.price).toLocaleString()+'</p><div class=\'actions\'><button class=\'btn-warning\' onclick=\'toggleStatus('+c.id+',"'+c.status+'")\'>'+btnText+'</button><button onclick=\'printAgreement(\'+c.id+\')\' style=\'background:#8B5CF6;color:#fff\'>📄 Agreement</button><button class=\'btn-danger\' onclick=\'delCar('+c.id+')\'>Delete</button><button style=\'background:#3B82F6;color:#fff\' onclick=\'shareCar('+c.id+')\'>Share</button><button style=\'background:#EC4899;color:#fff\' onclick=\'likeCar('+c.id+')\'>❤ '+(c.likes||0)+'</button></div></div></div>';
+      grid.innerHTML+='<div class=\'car-card\'><img src=\''+img+'\' onerror=\'this.remove()\'><div class=\'car-info\'>'+badge+'<h3>'+c.name+'</h3><p>₦'+Number(c.price).toLocaleString()+'</p><div class=\'actions\'><button class=\'btn-warning\' onclick=\'toggleStatus('+c.id+',"'+c.status+'")\'>'+btnText+'</button><button onclick=\'printAgreement(\'+c.id+\')\' style=\'background:#8B5CF6;color:#fff\'>📄 Agreement</button><button class=\'btn-danger\' onclick=\'delCar('+c.id+')\'>Delete</button><button style=\'background:#3B82F6;color:#fff\' onclick=\'shareCar('+c.id+')\'>Share</button><button style=\'background:#EC4899;color:#fff\' onclick=\'likeCar('+c.id+')\'>❤ '+(c.likes||0)+'</button></div></div></div>';
     });
     document.getElementById('statCar').innerText=active;
     document.getElementById('statSold').innerText=sold;
