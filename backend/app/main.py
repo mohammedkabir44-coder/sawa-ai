@@ -124,7 +124,13 @@ function showTab(i){
 
 function loadCars(){
   var grid=document.getElementById('carGrid');
-  fetch('/dealer-cars').then(function(r){return r.json()}).then(function(cars){
+  grid.innerHTML = '<p style="color:#F59E0B;text-align:center">Fetching cars from server...</p>';
+  var url = window.location.origin + '/dealer-cars';
+  fetch(url).then(function(r){
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(cars){
+    if(!Array.isArray(cars)) throw new Error('Invalid data format');
     grid.innerHTML='';
     if(!cars.length){grid.innerHTML='<p style="color:var(--muted);text-align:center">No cars in inventory.</p>';return;}
     var html='';
@@ -147,7 +153,9 @@ function loadCars(){
         '</div></div></div>';
     });
     grid.innerHTML=html;
-  }).catch(function(e){grid.innerHTML='<p style="color:#EF4444">'+e+'</p>'});
+  }).catch(function(e){
+      grid.innerHTML='<div style="text-align:center;padding:20px"><p style="color:#EF4444;font-weight:bold">Failed to load inventory: ' + e.message + '</p><button onclick="loadCars()" style="margin-top:15px;padding:12px 24px;background:#EF4444;color:#fff;border:none;border-radius:8px;font-weight:bold">🔄 Retry Loading</button></div>';
+    });
 }
 
 function doAct(url){
