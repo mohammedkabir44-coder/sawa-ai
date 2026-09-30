@@ -748,7 +748,7 @@ async function loadCars(){
     if(!cars.length){grid.innerHTML="<p style=\\'color:var(--muted);grid-column:span 2;text-align:center\\'>No cars yet. Upload your first!</p>";return;}
     cars.forEach(function(c){
       var img=c.images&&c.images.length?c.images[0]:"";
-      grid.innerHTML+=`<div class="car-card"><img src="${img}" onerror="this.style.display=\\'none\\'"><div class="car-info"><h3>${c.name}</h3><p>₦${Number(c.price).toLocaleString()}</p><div class="car-actions"><button class="edit-btn" onclick="editCar(${c.id})">Edit</button><button class="del-btn" onclick="delCar(${c.id})">Delete</button></div></div></div>`;
+      grid.innerHTML+=`<div class="car-card"><img src="${img}" onerror="this.style.display=\\'none\\'"><div class="car-info"><h3>${c.name}</h3><p>₦${Number(c.price).toLocaleString()}</p><div class="car-actions"><button class="edit-btn" onclick="editCar(${c.id})">Edit</button><button onclick=\'printAgreement(\'+c.id+\')\' style=\'background:#8B5CF6;color:#fff\'>📄 Agreement</button><button class="del-btn" onclick="delCar(${c.id})">Delete</button></div></div></div>`;
     });
   }catch(e){grid.innerHTML="<p style=\\'color:#EF4444;grid-column:span 2;text-align:center\\'>"+e.message+"</p>"}
 }
@@ -756,6 +756,16 @@ async function delCar(id){if(!confirm("Delete this car?"))return;try{await api("
 function editCar(id){alert("Edit feature coming soon!")}
 function logout(){localStorage.clear();location.href="/agent-login";}
 loadProfile();loadCars();
+
+function printAgreement(id){
+  var n = prompt("Enter Buyer's Full Name:");
+  if(!n) return;
+  var p = prompt("Enter Buyer's Phone Number:");
+  var a = prompt("Enter Buyer's Address:");
+  var url = '/agreement/'+id+'?buyer_name='+encodeURIComponent(n)+'&buyer_phone='+encodeURIComponent(p||'')+'&buyer_address='+encodeURIComponent(a||'');
+  window.open(url, '_blank');
+}
+
 </script></body></html>"""
     return HTMLResponse(content=html)
 
@@ -959,7 +969,7 @@ async function loadCars(){
       var img=c.images&&c.images.length?c.images[0]:'';
       var badge=c.status==='sold'?'<span class=\'badge badge-sold\'>SOLD</span>':'<span class=\'badge badge-avail\'>AVAILABLE</span>';
       var btnText=c.status==='sold'?'Mark Available':'Mark Sold';
-      grid.innerHTML+='<div class=\'car-card\'><img src=\''+img+'\' onerror=\'this.style.display="none"\'><div class=\'car-info\'>'+badge+'<h3>'+c.name+'</h3><p>₦'+Number(c.price).toLocaleString()+'</p><div class=\'actions\'><button class=\'btn-warning\' onclick=\'toggleStatus('+c.id+',"'+c.status+'")\'>'+btnText+'</button><button class=\'btn-danger\' onclick=\'delCar('+c.id+')\'>Delete</button><button style=\'background:#3B82F6;color:#fff\' onclick=\'shareCar('+c.id+')\'>Share</button><button style=\'background:#EC4899;color:#fff\' onclick=\'likeCar('+c.id+')\'>❤ '+(c.likes||0)+'</button></div></div></div>';
+      grid.innerHTML+='<div class=\'car-card\'><img src=\''+img+'\' onerror=\'this.style.display="none"\'><div class=\'car-info\'>'+badge+'<h3>'+c.name+'</h3><p>₦'+Number(c.price).toLocaleString()+'</p><div class=\'actions\'><button class=\'btn-warning\' onclick=\'toggleStatus('+c.id+',"'+c.status+'")\'>'+btnText+'</button><button onclick=\'printAgreement(\'+c.id+\')\' style=\'background:#8B5CF6;color:#fff\'>📄 Agreement</button><button class=\'btn-danger\' onclick=\'delCar('+c.id+')\'>Delete</button><button style=\'background:#3B82F6;color:#fff\' onclick=\'shareCar('+c.id+')\'>Share</button><button style=\'background:#EC4899;color:#fff\' onclick=\'likeCar('+c.id+')\'>❤ '+(c.likes||0)+'</button></div></div></div>';
     });
     document.getElementById('statCar').innerText=active;
     document.getElementById('statSold').innerText=sold;
@@ -1078,3 +1088,103 @@ def save_bot_config(data: dict):
 def get_bot_config():
     # Return default bot personality
     return {'name': 'Sodangi Assistant', 'greet': 'Salam! Welcome to Sodangi Motors. How can I help you find your dream car today?', 'busy': 'I am currently away, but will reply shortly!'}
+
+
+@app.get("/agreement/{car_id}")
+def generate_agreement(car_id: int, buyer_name: str = "N/A", buyer_phone: str = "N/A", buyer_address: str = "N/A"):
+    from app.core.database import engine
+    from sqlalchemy import text
+    from fastapi.responses import HTMLResponse
+    import urllib.parse, datetime, json
+    
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(text('SELECT name, price, description, images FROM products WHERE id = :id'), {'id': car_id}).first()
+            if not row: return HTMLResponse("<h1>Car Not Found</h1>")
+            
+            car_name = row[0]
+            car_price = f"₦{float(row[1]):,.0f}"
+            car_desc = row[2] or "Standard Vehicle"
+            date_str = datetime.date.today().strftime('%B %d, %Y')
+            ref_no = f"SOD-{car_id}-{datetime.date.today().year}"
+            
+            # Generate QR Data (JSON format for easy scanning)
+            qr_data = json.dumps({
+                "ref": ref_no,
+                "car": car_name,
+                "price": car_price,
+                "buyer": buyer_name,
+                "date": date_str,
+                "dealer": "Sodangi Motors"
+            })
+            qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={urllib.parse.quote(qr_data)}"
+            
+            html = f'''<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agreement {ref_no}</title>
+            <style>
+            body{{font-family:serif;background:#f4f4f4;margin:0;padding:20px;color:#000}}
+            .page{{background:#fff;max-width:800px;margin:0 auto;padding:40px;border:1px solid #ddd;box-shadow:0 0 20px rgba(0,0,0,0.1)}}
+            .header{{text-align:center;border-bottom:3px double #000;padding-bottom:20px;margin-bottom:30px}}
+            .header h1{{margin:0;font-size:28px;letter-spacing:2px}}
+            .header p{{margin:5px 0;font-size:14px;color:#555}}
+            .title{{text-align:center;font-size:20px;font-weight:bold;text-decoration:underline;margin:20px 0}}
+            .parties{{display:flex;justify-content:space-between;margin:30px 0}}
+            .party{{width:48%}}
+            .party h3{{border-bottom:1px solid #000;margin-bottom:10px;font-size:16px}}
+            .details{{margin:20px 0;line-height:1.6}}
+            .qr-section{{text-align:center;margin:40px 0;padding:20px;border:2px dashed #000;background:#f9f9f9}}
+            .signatures{{display:flex;justify-content:space-between;margin-top:60px}}
+            .sig-line{{width:40%;border-top:1px solid #000;text-align:center;padding-top:5px;font-size:12px}}
+            .btn-print{{display:block;width:200px;margin:20px auto;padding:15px;background:#10B981;color:#fff;text-align:center;text-decoration:none;font-weight:bold;border-radius:8px;font-family:sans-serif}}
+            @media print {{ .btn-print {{ display: none; }} body {{ background: #fff; }} .page {{ box-shadow: none; border: none; }} }}
+            </style></head><body>
+            <a href="javascript:window.print()" class="btn-print no-print">🖨️ Print / Save as PDF</a>
+            <div class="page">
+                <div class="header">
+                    <h1>SODANGI MOTORS LTD</h1>
+                    <p>Lagos, Nigeria | +234 814 296 9979 | sales@sodangimotors.com</p>
+                </div>
+                
+                <div class="title">OFFICIAL VEHICLE SALE AGREEMENT</div>
+                <p style="text-align:right"><strong>Ref No:</strong> {ref_no}<br><strong>Date:</strong> {date_str}</p>
+                
+                <div class="parties">
+                    <div class="party">
+                        <h3>THE SELLER</h3>
+                        <p><strong>Sodangi Motors Ltd</strong><br>
+                        Authorized Dealer<br>
+                        Lagos, Nigeria</p>
+                    </div>
+                    <div class="party">
+                        <h3>THE BUYER</h3>
+                        <p><strong>{buyer_name}</strong><br>
+                        Phone: {buyer_phone}<br>
+                        Address: {buyer_address}</p>
+                    </div>
+                </div>
+                
+                <div class="details">
+                    <p>The Seller hereby transfers ownership of the following vehicle to the Buyer:</p>
+                    <ul>
+                        <li><strong>Vehicle Model:</strong> {car_name}</li>
+                        <li><strong>Agreed Price:</strong> {car_price}</li>
+                        <li><strong>Condition:</strong> Sold as seen, fully inspected and verified.</li>
+                        <li><strong>Additional Notes:</strong> {car_desc}</li>
+                    </ul>
+                    <p style="margin-top:20px">The Buyer acknowledges receipt of the vehicle in good working condition and accepts full responsibility for it from the date of this agreement. The Seller guarantees that the vehicle is free from any financial encumbrances or legal disputes.</p>
+                </div>
+                
+                <div class="qr-section">
+                    <p style="margin:0 0 10px;font-weight:bold">🔐 VERIFIED DIGITAL OWNERSHIP (Scan to Verify)</p>
+                    <img src="{qr_url}" alt="Ownership QR Code">
+                    <p style="font-size:10px;margin-top:10px;color:#666">Scan this code to verify the authenticity of this transaction on the Sodangi Motors registry.</p>
+                </div>
+                
+                <div class="signatures">
+                    <div class="sig-line">Seller's Signature</div>
+                    <div class="sig-line">Buyer's Signature</div>
+                </div>
+            </div>
+            </body></html>'''
+            return HTMLResponse(content=html)
+    except Exception as e:
+        return HTMLResponse(f"<h1>Error: {e}</h1>")
